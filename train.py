@@ -1,3 +1,6 @@
+'''
+大模型指令微调通用代码，支持LLaMA、GLM、BLOOM基座模型
+'''
 import os
 os.environ["WANDB_DISABLED"] = "true"
 import sys
@@ -46,6 +49,7 @@ from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from transformers.trainer_callback import TrainerCallback
 
 from arguments import TrainingArguments, ModelArguments, DataArguments
+from utils import print_rank_0
 
 logger = logging.getLogger(__name__)
 IGNORE_INDEX = -100
@@ -58,22 +62,18 @@ class SavePeftModelAtEndCallback(TrainerCallback):
         return control
 
 
-def print_rank_0(msg, log_file, rank=0):
-    if rank <= 0:
-        with open(log_file, 'a') as f:
-            print(msg)
-            f.write(msg + '\n')
-
 def main():
+    # 参数
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # ddp相关
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     ddp = world_size != 1
     global_rank = torch.distributed.get_rank()
+    
+    # 建立logging
     log_file = os.path.join(training_args.output_dir,'print_log.txt')
-
-    # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
@@ -115,7 +115,6 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    
     torch_dtype = (
         model_args.torch_dtype
         if model_args.torch_dtype in ["auto", None]
@@ -133,7 +132,7 @@ def main():
             torch_dtype=torch_dtype,
         )
     else:
-        if model_args.llama:
+        if model_args.model_type == 'llama':
             model = AutoModelForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
                 torch_dtype=torch_dtype,
@@ -146,7 +145,7 @@ def main():
                 trust_remote_code=True
             ).half()    # ChatGLM
 
-    if model_args.llama:
+    if model_args.model_type == 'llama':
         tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
         print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
         tokenizer.eos_token_id = 2
@@ -198,36 +197,6 @@ def main():
 
     # model.is_parallelizable = True
     # model.model_parallel = True
-
-    # def generate_and_tokenize_prompt(data_point):
-    #     input_ids = []
-    #     labels = []
-    #     source = data_point["conversations"]
-    #     for sentence in source:
-    #         sentence_from = sentence["from"].lower()
-    #         sentence_value = 'Human: \n' + sentence["value"] + '\n\nAssistant: \n' if sentence_from == 'human' else sentence["value"] #https://github.com/LianjiaTech/BELLE/issues/337
-    #         # conversation += sentence_value
-    #         sentence_ids = tokenizer.encode(sentence_value, add_special_tokens=False)#do not add bos_token_id
-    #         label = copy.deepcopy(sentence_ids) if sentence_from != 'human' else [IGNORE_INDEX] * len(sentence_ids)
-    #         input_ids += sentence_ids
-    #         labels += label
-    #         # add eos at every end of assistant sentence
-    #         if sentence_from != 'human':
-    #             input_ids += [tokenizer.eos_token_id]#make sure eos_token_id is correct
-    #             labels += [tokenizer.eos_token_id]
-
-    #     input_ids = input_ids[:training_args.model_max_length-1]
-    #     labels = labels[:training_args.model_max_length-1]
-    #     if not any(x > -100 for x in labels):
-    #         labels[18:24] = input_ids[18:24]#labels can not have all values being -100. 18 and 24 are just random numbers
-
-    #     attention_mask = [1] * len(input_ids)
-    #     tokenized_full_prompt = {
-    #         "input_ids": input_ids,
-    #         "attention_mask": attention_mask,
-    #         "labels": labels
-    #     }
-    #     return tokenized_full_prompt
     
     prefix = data_args.source_prefix if data_args.source_prefix is not None else ""
     prompt_column = data_args.prompt_column
