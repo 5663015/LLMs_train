@@ -45,10 +45,10 @@ if __name__ == '__main__':
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
-    tokenizer.pad_token_id = 0
-    tokenizer.bos_token_id = 1
-    tokenizer.eos_token_id = 2
-    tokenizer.padding_side = "left"
+    # tokenizer.pad_token_id = 0
+    # tokenizer.bos_token_id = 1
+    # tokenizer.eos_token_id = 2
+    # tokenizer.padding_side = "left"
 
     # model config
     model_config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=True)
@@ -99,15 +99,33 @@ if __name__ == '__main__':
     #     desc="Running tokenizer on validation dataset",
     # )
 
+    predictions = []
     with torch.no_grad():
-        for i, data in enumerate(test_data):
-            inputs = tokenizer(data['input'], max_length=max_new_tokens, truncation=True, return_tensors="pt")
-            # inputs = data["input_ids"]
+        for i, data in tqdm(enumerate(test_data['train'])):
+            inputs = tokenizer.encode(data['input'], max_length=max_new_tokens, truncation=True, return_tensors="pt")
             generation_output = model.generate(
-                input_ids = inputs['input_ids'].to(device), 
+                input_ids = inputs.to(device),
                 **generation_config
             )[0]
 
             generate_text = tokenizer.decode(generation_output, skip_special_tokens=True)
-            print('[{}/{}]----------'.format(i+1, len(test_data)))
-            print(generate_text)
+            # print('[{}/{}]----------'.format(i+1, len(test_data)))
+            # print(generate_text)
+            try:
+                predictions.append(generate_text.split('答:')[1])
+            except:
+                predictions.append(generate_text)
+
+    # 以下用于PromptCLBUE测试
+    list_test_samples = []
+    with open(args.data_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = json.loads(line)
+            list_test_samples.append(line)
+    output_prediction_file = os.path.join(args.ckpt_path, "test_predictions.json")
+    with open(output_prediction_file, "w", encoding="utf-8") as writer:
+        for idx, p in enumerate(predictions):
+            samp = list_test_samples[idx]
+            samp["target"] = p
+            res = json.dumps(samp, ensure_ascii=False)
+            writer.write(f"{res}\n")
