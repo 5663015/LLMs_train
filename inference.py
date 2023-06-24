@@ -13,14 +13,14 @@ from data_generate import DataGenerate
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_name_or_path', type=str, required=True)
 parser.add_argument('--ckpt_path', type=str, required=True)
+parser.add_argument('--model_type', type=str, required=True)
 parser.add_argument('--use_lora', action="store_true")
-parser.add_argument('--llama', action="store_true")
 parser.add_argument('--data_file', type=str, required=True)
 parser.add_argument('--cache_dir', type=str, default=None)
 args = parser.parse_args()
 
 
-max_new_tokens = 512
+max_new_tokens = 64
 generation_config = dict(
     temperature=0.001,
     top_k=30,
@@ -40,27 +40,32 @@ if __name__ == '__main__':
         device = torch.device('cpu')
 
     # Tokenizer
-    if args.llama:
+    if args.model_type == 'llama':
         tokenizer = LlamaTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
-    # tokenizer.pad_token_id = 0
-    # tokenizer.bos_token_id = 1
-    # tokenizer.eos_token_id = 2
-    # tokenizer.padding_side = "left"
+    if args.model_type == 'pythia':
+        tokenizer.eos_token_id = 2
+        tokenizer.bos_token_id = 1
+        tokenizer.pad_token_id = 0
+    elif args.model_type == 'llama':
+        tokenizer.pad_token_id = 0
+        tokenizer.bos_token_id = 1
+        tokenizer.eos_token_id = 2
+        tokenizer.padding_side = "left"
 
     # model config
     model_config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
     # model or lora_model
     if args.use_lora:
-        if args.llama:
+        if args.model_type in ['llama', 'pythia']:
             base_model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, 
                                                             torch_dtype=load_type,
                                                             trust_remote_code=True
                                                             )
-        else:
+        elif args.model_type == 'glm':
             base_model = AutoModel.from_pretrained(args.model_name_or_path, 
                                                             torch_dtype=load_type,
                                                             trust_remote_code=True
@@ -102,19 +107,28 @@ if __name__ == '__main__':
     predictions = []
     with torch.no_grad():
         for i, data in tqdm(enumerate(test_data['train'])):
-            inputs = tokenizer.encode(data['input'], max_length=max_new_tokens, truncation=True, return_tensors="pt")
+            input_text = data['instruction'][0] + data['input']
+            inputs = tokenizer.encode(
+                input_text, 
+                max_length=max_new_tokens, 
+                truncation=True, 
+                return_tensors="pt"
+                )
             generation_output = model.generate(
                 input_ids = inputs.to(device),
                 **generation_config
             )[0]
 
             generate_text = tokenizer.decode(generation_output, skip_special_tokens=True)
-            # print('[{}/{}]----------'.format(i+1, len(test_data)))
-            # print(generate_text)
+            print('[{}/{}]----------'.format(i+1, len(test_data['train'])))
+            print('input: \n', input_text)
+            print('output: \n', generate_text)
             try:
                 predictions.append(generate_text.split('答:')[1])
             except:
                 predictions.append(generate_text)
+            if i == 100:
+                break
 
     # 以下用于PromptCLBUE测试
     list_test_samples = []

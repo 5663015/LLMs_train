@@ -1,32 +1,35 @@
-lora_config="lora_config_chatglm_6b"
+lora_config="lora_config_pythia_12b"
 LR=2e-4
-model_name_or_path="/home/lixudong39/models/chatglm-6b"   # LLM底座模型路径，或者是huggingface hub上的模型名称
-your_data_path="./datasets/PromptCBLUE"  # 填入数据集所在的文件夹路径
+model_name_or_path="../models/pythia-12b-sft-v8-7k-steps"   # LLM底座模型路径，或者是huggingface hub上的模型名称
+your_data_path="./datasets/IMCS-DAC/datasets"  # 填入数据集所在的文件夹路径
 your_checkpopint_path="./experiments/outputs"  # 填入用来存储模型的路径
 
 peft_path=""  # 如果之前训练过，且存储了peft权重，则设置为peft权重的文件夹路径
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
+CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 nohup torchrun --nproc_per_node 7 train.py \
+    --deepspeed configs/ds_zero2_no_offload.json \
     --model_name_or_path $model_name_or_path \
+    --model_type pythia \
     --use_lora True \
-    --train_file $your_data_path/train.json \
-    --validation_file $your_data_path/dev.json \
+    --train_file $your_data_path/train_instruction_2.json \
+    --validation_file $your_data_path/dev_instruction_2.json \
     --cache_dir $your_data_path \
     --prompt_column input \
     --response_column target \
-    --output_dir $your_checkpopint_path/PromptCBLUE-chatglm-6b-lora-$LR \
+    --output_dir $your_checkpopint_path/yitushibie-pythia-12b-lora-$LR \
     --overwrite_output_dir \
     --max_source_length 512 \
     --max_target_length 64 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 16 \
-    --max_steps 10000 \
+    --max_steps 350 \
     --logging_steps 10 \
-    --save_steps 300 \
+    --save_steps 50 \
     --learning_rate $LR \
+    --fp16 \
     --lora_config configs/${lora_config}.json \
-        > experiments/outputs/PromptCBLUE-chatglm-6b-lora-$LR/log 2>&1 &
+        > experiments/outputs/yitushibie-pythia-12b-lora-$LR/log 2>&1 &
 
 
 # model_name_or_path='checkpoints/BelleGroup-BELLE-LLaMA-EXT-13B'

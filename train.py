@@ -49,6 +49,7 @@ from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from transformers.trainer_callback import TrainerCallback
 
 from arguments import TrainingArguments, ModelArguments, DataArguments
+from data_generate import DataGenerate
 from utils import print_rank_0
 
 logger = logging.getLogger(__name__)
@@ -138,26 +139,40 @@ def main():
                 torch_dtype=torch_dtype,
                 trust_remote_code=True
             )
-        else:
+        elif model_args.model_type == 'glm':
             model = AutoModel.from_pretrained(
                 model_args.model_name_or_path,
                 torch_dtype=torch_dtype,
                 trust_remote_code=True
             ).half()    # ChatGLM
+        elif model_args.model_type == 'pythia':
+            model = AutoModelForCausalLM.from_pretrained(
+                model_args.model_name_or_path,
+                torch_dtype=torch_dtype,
+                trust_remote_code=True
+            )
 
     if model_args.model_type == 'llama':
         tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
         print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
         tokenizer.eos_token_id = 2
         tokenizer.bos_token_id = 1
-    else:
+        tokenizer.pad_token_id = 0
+        tokenizer.padding_side = "left"  # Allow batched inference
+        tokenizer.pad_token = tokenizer.eos_token
+    elif model_args.model_type == 'glm':
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
             trust_remote_code=True
         )
-
-    tokenizer.pad_token_id = 0
-    tokenizer.padding_side = "left"  # Allow batched inference
+    elif model_args.model_type == 'pythia':
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.model_name_or_path,
+            trust_remote_code=True
+        )
+        tokenizer.eos_token_id = 2
+        tokenizer.bos_token_id = 1
+        tokenizer.pad_token_id = 0
 
     print_rank_0("tokenizer.eos_token_id = {}".format(tokenizer.eos_token_id), log_file, global_rank)
     print_rank_0("tokenizer.pad_token_id = {}".format(tokenizer.pad_token_id), log_file, global_rank)
@@ -203,85 +218,36 @@ def main():
     response_column = data_args.response_column
     history_column = data_args.history_column
 
-    def generate_and_tokenize_prompt(data_point):
-        max_seq_length = data_args.max_source_length + data_args.max_target_length
+    with training_args.main_process_first(desc="loading and tokenization"):
+        # data generation
+        data_generator = DataGenerate(tokenizer)
 
-        model_inputs = {
-            "input_ids": [],
-            "labels": [],
-        }
-        for i in range(len(data_point[prompt_column])):
-            if data_point[prompt_column][i] and data_point[response_column][i]:
-                query, answer = data_point[prompt_column][i], data_point[response_column][i]
+        assert os.path.exists(data_args.train_file), "{} file not exists".format(data_args.train_file)
+        if data_args.train_file.endswith(".json") or data_args.train_file.endswith(".jsonl"):
+            data = load_dataset("json", data_files=data_args.train_file, cache_dir=model_args.cache_dir)
+        else:
+            data = load_dataset(data_args.train_file, cache_dir=model_args.cache_dir)
 
-                if history_column is None:
-                    prompt = query
-                else:
-                    prompt = ""
-                    history = data_point[history_column][i]
-                    for turn_idx, (old_query, response) in enumerate(history):
-                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(turn_idx, old_query, response)
-                    prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+        data.cleanup_cache_files()
+        column_names = data["train"].column_names
+        train_data = data["train"].shuffle().map(
+            data_generator.generate_for_IMCS_DAC_train,
+            batched=True,
+            remove_columns=column_names,
+            load_from_cache_file=False,
+            desc="Running tokenizer on train dataset",
+        )
+        val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
+        val_data = val_data["train"].shuffle().map(
+            data_generator.generate_for_IMCS_DAC_test,
+            batched=True,
+            remove_columns=column_names,
+            load_from_cache_file=False,
+            desc="Running tokenizer on validation dataset",
+        )
 
-                prompt = prefix + prompt
-                a_ids = tokenizer.encode(text=prompt, add_special_tokens=False)
-                b_ids = tokenizer.encode(text=answer, add_special_tokens=False)
-
-                if len(a_ids) > data_args.max_source_length - 1:
-                    a_ids = a_ids[: data_args.max_source_length - 1]
-
-                if len(b_ids) > data_args.max_target_length - 2:
-                    b_ids = b_ids[: data_args.max_target_length - 2]
-
-                input_ids = tokenizer.build_inputs_with_special_tokens(a_ids, b_ids)
-
-                context_length = input_ids.index(tokenizer.bos_token_id)
-                mask_position = context_length - 1
-                labels = [-100] * context_length + input_ids[mask_position+1:]
-                
-                pad_len = max_seq_length - len(input_ids)
-                input_ids = input_ids + [tokenizer.pad_token_id] * pad_len
-                labels = labels + [tokenizer.pad_token_id] * pad_len
-                # print("input_ids: ", len(input_ids))
-                # print("labels: ", len(labels))
-
-                if data_args.ignore_pad_token_for_loss:
-                    labels = [(l if l != tokenizer.pad_token_id else -100) for l in labels]
-
-                model_inputs["input_ids"].append(input_ids)
-                model_inputs["labels"].append(labels)
-
-        return model_inputs
-
-
-    assert os.path.exists(data_args.train_file), "{} file not exists".format(data_args.train_file)
-    if data_args.train_file.endswith(".json") or data_args.train_file.endswith(".jsonl"):
-        data = load_dataset("json", data_files=data_args.train_file, cache_dir=model_args.cache_dir)
-    else:
-        data = load_dataset(data_args.train_file, cache_dir=model_args.cache_dir)
-
-    data.cleanup_cache_files()
-    column_names = data["train"].column_names
-    train_data = data["train"].shuffle().map(
-        generate_and_tokenize_prompt,
-        batched=True,
-        remove_columns=column_names,
-        load_from_cache_file=False,
-        desc="Running tokenizer on train dataset",
-    )
-    val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
-    val_data = val_data["train"].shuffle().map(
-        generate_and_tokenize_prompt,
-        batched=True,
-        remove_columns=column_names,
-        load_from_cache_file=False,
-        desc="Running tokenizer on validation dataset",
-    )
-
-    for i in range(2):
-        print_rank_0("Eval tokenized example: {}".format(val_data[i]), log_file, global_rank)
-    for i in range(2):
-        print_rank_0("Train tokenized example: {}".format(train_data[i]), log_file, global_rank)
+    print_rank_0("Eval tokenized example: {}".format(val_data[0]), log_file, global_rank)
+    print_rank_0("Train tokenized example: {}".format(train_data[0]), log_file, global_rank)
 
     training_nums = len(data['train'])
     num_gpus = torch.cuda.device_count()
@@ -339,7 +305,7 @@ def main():
 
     trainer.train(resume_from_checkpoint=None)
     if training_args.use_lora:
-        model.save_pretrained(training_args.output_dir)#Save adapter_model.bin and adapter_config.json
+        model.save_pretrained(training_args.output_dir)     #Save adapter_model.bin and adapter_config.json
 
     trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
     print_rank_0("\n Training completed!!! If there's a warning about missing keys above, please disregard :)", log_file, global_rank)

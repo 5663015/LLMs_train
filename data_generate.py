@@ -36,7 +36,99 @@ class DataGenerate:
 		}
 		return tokenized_full_prompt
 	
-	# used for PromptCBLUE
+	# used for train IMCS-DAC
+	def generate_for_IMCS_DAC_train(self, 
+				 data_point, 
+			      max_source_length=512, 
+				  max_target_length=64,
+				  prompt_column='input',
+				  response_column='output',
+				  history_column=None,
+				  ignore_pad_token_for_loss=True,):
+		max_seq_length = max_source_length + max_target_length
+
+		model_inputs = {
+			"input_ids": [],
+			"labels": [],
+		}
+		for i in range(len(data_point[prompt_column])):
+			if data_point[prompt_column][i] and data_point[response_column][i]:
+				prompt, answer = data_point['instruction'][i][0] + data_point[prompt_column][i], \
+                    data_point['cot'][i] + data_point[response_column][i]
+
+				a_ids = self.tokenizer.encode(text=prompt, add_special_tokens=False)
+				b_ids = self.tokenizer.encode(text=answer, add_special_tokens=False)
+				b_ids = [self.tokenizer.bos_token_id] + b_ids
+
+				if len(a_ids) > max_source_length - 1:
+					a_ids = a_ids[: max_source_length - 1]
+
+				if len(b_ids) > max_target_length - 2:
+					b_ids = b_ids[: max_target_length - 2]
+
+				input_ids = self.tokenizer.build_inputs_with_special_tokens(a_ids, b_ids)
+
+				context_length = input_ids.index(self.tokenizer.bos_token_id)
+				mask_position = context_length - 1
+				labels = [-100] * context_length + input_ids[mask_position+1:]
+				
+				pad_len = max_seq_length - len(input_ids)
+				input_ids = input_ids + [self.tokenizer.pad_token_id] * pad_len
+				labels = labels + [self.tokenizer.pad_token_id] * pad_len
+
+				if ignore_pad_token_for_loss:
+					labels = [(l if l != self.tokenizer.pad_token_id else -100) for l in labels]
+
+				model_inputs["input_ids"].append(input_ids)
+				model_inputs["labels"].append(labels)
+
+		return model_inputs
+	
+	# used for test IMCS-DAC
+	def generate_for_IMCS_DAC_test(self, 
+				 data_point, 
+			      max_source_length=512, 
+				  max_target_length=64,
+				  prompt_column='input',
+				  response_column='output',
+				  history_column=None,
+				  prefix='',
+				  ignore_pad_token_for_loss=True,):
+		inputs, targets = [], []
+		for i in range(len(data_point[prompt_column])):
+			if not data_point[response_column][i]:
+				targets.append("filled in !")
+			else:
+				targets.append(data_point[response_column][i])
+
+			if data_point[prompt_column][i]:
+				query = data_point['instruction'][i][0] + data_point[prompt_column][i]
+				if history_column is None or len(data_point[history_column][i]) == 0:
+					prompt = query
+				else:
+					prompt = ""
+					history = data_point[history_column][i]
+					for turn_idx, (old_query, response) in enumerate(history):
+						prompt += "[Round {}]\n问：{}\n答：{}\n".format(turn_idx, old_query, response)
+					prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+				inputs.append(prompt)
+
+		inputs = [prefix + inp for inp in inputs]
+		model_inputs = self.tokenizer(inputs,
+									max_length=max_source_length,
+									truncation=True,
+									padding=True)
+		labels = self.tokenizer(text_target=targets, max_length=max_target_length, truncation=True)
+
+		if ignore_pad_token_for_loss:
+			labels["input_ids"] = [
+				[(l if l != self.tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
+			]
+		model_inputs["labels"] = labels["input_ids"]
+
+		return model_inputs
+	
+	# used for train PromptCBLUE
 	def generate_for_PromptCBLUE_train(self, 
 			      data_point, 
 			      max_source_length=512, 
@@ -93,6 +185,7 @@ class DataGenerate:
 
 		return model_inputs
 	
+	# used for test PromptCBLUE
 	def generate_for_PromptCBLUE_test(self, 
 			      data_point, 
 			      max_source_length=512, 
