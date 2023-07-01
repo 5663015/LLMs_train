@@ -24,7 +24,7 @@ class ModelArguments:
             "help": (
                 "The base model type. "
             ),
-            "choices": ["llama", "glm", "bloom", "pythia"]
+            "choices": ["llama", "glm", "bloom", "pythia", "gpt-neox"]
         }
     )
     config_name: Optional[str] = field(
