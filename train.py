@@ -152,8 +152,10 @@ def main():
             model = AutoModelForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
                 torch_dtype=torch_dtype,
-                trust_remote_code=True
+                trust_remote_code=True,
+                torchscript=model_args.torchscript
             )
+
         elif model_args.model_type == 'gpt-neox':
             configuration = GPTNeoXConfig()
             model = GPTNeoXModel(configuration).from_pretrained(
@@ -318,6 +320,11 @@ def main():
     trainer.train(resume_from_checkpoint=None)
     if training_args.use_lora:
         model.save_pretrained(training_args.output_dir)     #Save adapter_model.bin and adapter_config.json
+
+    if model_args.torchscript:
+        traced_model = torch.jit.trace(model, 
+                        [torch.tensor([train_data[0]['input_ids']]).cuda(), torch.tensor([train_data[0]['labels']]).cuda()])
+        torch.jit.save(traced_model, training_args.output_dir + "/torchscript_model.pt")
 
     trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
     print_rank_0("\n Training completed!!! If there's a warning about missing keys above, please disregard :)", log_file, global_rank)

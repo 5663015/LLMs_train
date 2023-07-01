@@ -55,6 +55,10 @@ class ModelArguments:
         default=False,
         metadata={"help": "Llama model"}
     )
+    torchscript: bool = field(
+        default=False,
+        metadata={"help": "torchscript model"}
+    )
 
 
 @dataclass
