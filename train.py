@@ -35,9 +35,15 @@ from peft import (
 from transformers import (
     AutoModel,
     AutoModelForCausalLM,
-    GPTNeoXConfig,
-    GPTNeoXModel,
     AutoTokenizer,
+    LlamaConfig,
+    LlamaForCausalLM,
+    LlamaTokenizer,
+    BloomConfig,
+    BloomForCausalLM,
+    BloomTokenizerFast,
+    GPTNeoXConfig,
+    GPTNeoXForCausalLM,
     GPTNeoXTokenizerFast,
     HfArgumentParser,
     TrainingArguments,
@@ -57,6 +63,15 @@ from utils import print_rank_0
 
 logger = logging.getLogger(__name__)
 IGNORE_INDEX = -100
+
+MODELS_MAP = {
+        'llama': LlamaForCausalLM,
+        'glm': AutoModel,
+        'bllom': BloomForCausalLM,
+        'pythia': GPTNeoXForCausalLM,
+        'gpt-nexo': GPTNeoXForCausalLM,
+        'baichuan': AutoModelForCausalLM
+    }
 
 # save peft at train end
 class SavePeftModelAtEndCallback(TrainerCallback):
@@ -124,46 +139,59 @@ def main():
         if model_args.torch_dtype in ["auto", None]
         else getattr(torch, model_args.torch_dtype)
     )
-    # int8 is not compatible with DeepSpeed (require not to pass device_map)
-    if training_args.use_int8_training:
-        print_rank_0("int8 is not compatible with DeepSpeed. ", log_file, global_rank)
-        device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if world_size != 1 else "auto"
-        # device_map = "auto"
-        model = AutoModelForCausalLM.from_pretrained(
+
+    # models
+    if model_args.model_type in MODELS_MAP.keys():
+        model = MODELS_MAP[model_args.model_type].from_pretrained(
             model_args.model_name_or_path,
-            load_in_8bit=True,      # xxx: int8 load in
-            device_map=device_map,  # xxx: int8 requires passing device_map
             torch_dtype=torch_dtype,
+            trust_remote_code=True,
+            torchscript=model_args.torchscript
         )
     else:
-        if model_args.model_type == 'llama':
-            model = AutoModelForCausalLM.from_pretrained(
-                model_args.model_name_or_path,
-                torch_dtype=torch_dtype,
-                trust_remote_code=True
-            )
-        elif model_args.model_type == 'glm':
-            model = AutoModel.from_pretrained(
-                model_args.model_name_or_path,
-                torch_dtype=torch_dtype,
-                trust_remote_code=True
-            ).half()    # ChatGLM
-        elif model_args.model_type == 'pythia':
-            model = AutoModelForCausalLM.from_pretrained(
-                model_args.model_name_or_path,
-                torch_dtype=torch_dtype,
-                trust_remote_code=True,
-                torchscript=model_args.torchscript
-            )
+        model = AutoModel.from_pretrained(
+            model_args.model_name_or_path,
+            torch_dtype=torch_dtype,
+            trust_remote_code=True,
+            torchscript=model_args.torchscript
+        )
+    
+    # if model_args.model_type == 'llama':
+    #     model = AutoModelForCausalLM.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         torch_dtype=torch_dtype,
+    #         trust_remote_code=True
+    #     )
+    # elif model_args.model_type == 'glm':
+    #     model = AutoModel.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         torch_dtype=torch_dtype,
+    #         trust_remote_code=True
+    #     ).half()    # ChatGLM
+    # elif model_args.model_type == 'pythia':
+    #     model = AutoModelForCausalLM.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         torch_dtype=torch_dtype,
+    #         trust_remote_code=True,
+    #         torchscript=model_args.torchscript
+    #     )
+    # elif model_args.model_type == 'gpt-neox':
+    #     configuration = GPTNeoXConfig().from_pretrained(model_args.model_name_or_path)
+    #     model = GPTNeoXForCausalLM.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         config=configuration,
+    #         torch_dtype=torch_dtype,
+    #         trust_remote_code=True
+    #     )
+    # else:
+    #     model = AutoModel.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         torch_dtype=torch_dtype,
+    #         trust_remote_code=True,
+    #         torchscript=model_args.torchscript
+    #     )
 
-        elif model_args.model_type == 'gpt-neox':
-            configuration = GPTNeoXConfig()
-            model = GPTNeoXModel(configuration).from_pretrained(
-                model_args.model_name_or_path,
-                torch_dtype=torch_dtype,
-                trust_remote_code=True
-            )
-
+    # tokenizers
     if model_args.model_type == 'llama':
         tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
         print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
@@ -226,11 +254,6 @@ def main():
 
     # model.is_parallelizable = True
     # model.model_parallel = True
-    
-    prefix = data_args.source_prefix if data_args.source_prefix is not None else ""
-    prompt_column = data_args.prompt_column
-    response_column = data_args.response_column
-    history_column = data_args.history_column
 
     with training_args.main_process_first(desc="loading and tokenization"):
         # data generation
@@ -276,13 +299,6 @@ def main():
     print_rank_0("val data nums = {}, training_nums = {}, batch_size = {}".format(len(val_data), training_nums, batch_size), log_file, global_rank)
 
     #Trainer
-    #https://github.com/huggingface/transformers/blob/main/src/transformers/training_args.py
-    #https://github.com/huggingface/transformers/blob/main/src/transformers/data/data_collator.py
-    #https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py
-    #https://www.deepspeed.ai/docs/config-json/
-    #https://huggingface.co/docs/accelerate/usage_guides/deepspeed
-    #https://huggingface.co/transformers/v4.10.1/main_classes/deepspeed.html
-    #https://github.com/tatsu-lab/stanford_alpaca/issues/176
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -291,6 +307,7 @@ def main():
         data_collator=transformers.DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     )
     print_rank_0(f"Using {training_args.half_precision_backend} half precision backend", log_file, global_rank)
+
     # Train!
     len_dataloader = len(trainer.get_train_dataloader())
     num_update_steps_per_epoch = len_dataloader // training_args.gradient_accumulation_steps
@@ -318,15 +335,19 @@ def main():
         ).__get__(model, type(model))
 
     trainer.train(resume_from_checkpoint=None)
-    if training_args.use_lora:
-        model.save_pretrained(training_args.output_dir)     #Save adapter_model.bin and adapter_config.json
 
+    # Save adapter_model.bin and adapter_config.json
+    if training_args.use_lora:
+        model.save_pretrained(training_args.output_dir)     
+
+    trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
+
+    # Save model as .pt
     if model_args.torchscript:
         traced_model = torch.jit.trace(model, 
                         [torch.tensor([train_data[0]['input_ids']]).cuda(), torch.tensor([train_data[0]['labels']]).cuda()])
         torch.jit.save(traced_model, training_args.output_dir + "/torchscript_model.pt")
 
-    trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
     print_rank_0("\n Training completed!!! If there's a warning about missing keys above, please disregard :)", log_file, global_rank)
 
 

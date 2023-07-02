@@ -57,7 +57,7 @@ class ModelArguments:
     )
     torchscript: bool = field(
         default=False,
-        metadata={"help": "torchscript model"}
+        metadata={"help": "Save torchscript model. https://huggingface.co/docs/transformers/v4.30.0/en/torchscript#export-to-torchscript"}
     )
 
 
