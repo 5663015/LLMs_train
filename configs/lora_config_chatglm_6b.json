@@ -7,5 +7,6 @@
         "dense",
         "dense_h_to_4h",
         "dense_4h_to_h"
-    ]
+    ],
+    "modules_to_save": null
 }

@@ -69,7 +69,6 @@ MODELS_MAP = {
         'glm': AutoModel,
         'bllom': BloomForCausalLM,
         'pythia': GPTNeoXForCausalLM,
-        'gpt-nexo': GPTNeoXForCausalLM,
         'baichuan': AutoModelForCausalLM
     }
 
@@ -225,9 +224,6 @@ def main():
         print_rank_0("Loading lora config from {}".format(training_args.lora_config), log_file, global_rank)
         lora_config = json.load(open(training_args.lora_config))
         print_rank_0("Lora config: {}".format(lora_config), log_file, global_rank)
-        if training_args.use_int8_training:
-            print_rank_0("training_args.use_int8_training!!! (int8 is not compatible with DeepSpeed)", log_file, global_rank)
-            model = prepare_model_for_int8_training(model)
         config = LoraConfig(
             r=lora_config['lora_r'],
             lora_alpha=lora_config['lora_alpha'],
@@ -289,7 +285,6 @@ def main():
     training_nums = len(data['train'])
     num_gpus = torch.cuda.device_count()
 
-
     batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
     t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
     training_args.eval_steps = max(t_total // 5, 5)
@@ -316,6 +311,8 @@ def main():
     num_examples = trainer.num_examples(trainer.get_train_dataloader())
     num_train_samples = num_examples * training_args.num_train_epochs
     max_steps = math.ceil(training_args.num_train_epochs * num_update_steps_per_epoch)
+    trainable_params = get_model_param_count(model, trainable_only=True)
+    all_params = get_model_param_count(model, trainable_only=False)
     print_rank_0("***** Running training *****", log_file, global_rank)
     print_rank_0(f"  Num examples = {num_examples}", log_file, global_rank)
     print_rank_0(f"  Num train samples = {num_train_samples}", log_file, global_rank)
@@ -323,7 +320,8 @@ def main():
     print_rank_0(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_train_batch_size}", log_file, global_rank)
     print_rank_0(f"  Gradient Accumulation steps = {training_args.gradient_accumulation_steps}", log_file, global_rank)
     print_rank_0(f"  Total optimization steps = {max_steps}", log_file, global_rank)
-    print_rank_0(f"  Number of trainable parameters = {get_model_param_count(model, trainable_only=True)}", log_file, global_rank)
+    print_rank_0(f"  Number of all parameters = {all_params}", log_file, global_rank)
+    print_rank_0(f"  Number of trainable parameters = {trainable_params}, {trainable_params / all_params * 100}%", log_file, global_rank)
     
     model.config.use_cache = False
     if training_args.use_lora:
@@ -338,7 +336,7 @@ def main():
 
     # Save adapter_model.bin and adapter_config.json
     if training_args.use_lora:
-        model.save_pretrained(training_args.output_dir)     
+        model.save_pretrained(training_args.output_dir)
 
     trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
 

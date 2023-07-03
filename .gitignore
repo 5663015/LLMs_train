@@ -197,3 +197,5 @@ experiments/
 api_pythia.py
 1
 nohup.out
+scripts/train_pythia.sh
+scripts/train_test.sh

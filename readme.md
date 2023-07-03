@@ -1,32 +1,53 @@
 # LLMs-train：一套代码微调大模型
 
-本项目旨在微调多类基座大模型，实现 LORA + DeepSpeed + 单卡/多卡微调，目前已测试以下几类模型：
+本项目旨在微调多类基座大模型，实现 LORA + DeepSpeed + 单卡/多卡微调，目前已测试的模型见下表：
 
-- LLaMA-7B
-- ChatGLM-6B
-- BLOOM
-- Pythia-13B
-
-
+| 测试模型             | 语言 | 测试权重                                                     | 显存占用/fp16 |
+| -------------------- | ---- | ------------------------------------------------------------ | ------------- |
+| Chinese-LLaMA-Alpaca | 中文 | [chinese-llama-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-7b) |               |
+|                      |      | [chinese-llama-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-13b) |               |
+|                      |      | [chinese-alpaca-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-7b) |               |
+|                      |      | [chinese-alpaca-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-13b) |               |
+| Open-LLaMA           | 英文 | [open_llama_13b](https://huggingface.co/openlm-research/open_llama_13b) |               |
+|                      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b) |               |
+| BELLE                | 中文 | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B) |               |
+|                      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B) |               |
+| ChatGLM-6B           | 中文 | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)        |               |
+|                      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)      |               |
+| 百川                 | 中文 | [baichuan-7B](https://huggingface.co/baichuan-inc/baichuan-7B) |               |
+| TigerBot             | 中文 | [tigerbot-7b-sft](https://huggingface.co/TigerResearch/tigerbot-7b-sft) |               |
+|                      |      | [tigerbot-7b-base](https://huggingface.co/TigerResearch/tigerbot-7b-base) |               |
+| Pythia               | 英文 | [pythia-70m-deduped](https://huggingface.co/EleutherAI/pythia-70m-deduped) |               |
+|                      |      | [pythia-1b-deduped](https://huggingface.co/EleutherAI/pythia-1b-deduped) |               |
+|                      |      | [pythia-6.9b-deduped](https://huggingface.co/EleutherAI/pythia-6.9b-deduped) |               |
+|                      |      | [pythia-12b-deduped](https://huggingface.co/EleutherAI/pythia-12b-deduped) |               |
 
 **TODO：**
 
-- [ ] 测试baichuan-7B
-- [ ] 测试ChatGLM2-6B
-- [ ] 支持QLoRA
+- [ ] 支持 QLoRA
 - [ ] 对话界面
+- [ ] 测试 Falcon
+- [ ] 测试 CPM
 
+## Change log
 
+- 【2023-7-？】
 
 ## 运行
 
 ### 1、数据准备
 
-这里我们使用 [CCKS2023-PromptCBLUE中文医疗大模型评测基准](https://tianchi.aliyun.com/competition/entrance/532084/introduction) 比赛中的数据集。
+这里我们使用 [CCKS2023-PromptCBLUE中文医疗大模型评测基准](https://tianchi.aliyun.com/competition/entrance/532084/introduction) 比赛中的数据集为例。
 
-### 2、微调
+### 2、模型准备
 
-**环境准备：**
+部分 LLaMA 类的模型需要进行模型转换，涉及到的模型有：
+
+
+
+### 3、微调
+
+#### 环境准备
 
 ```shell
 conda create -n llms_train python=3.9
@@ -34,7 +55,72 @@ conda activate llms_train
 pip install -r requirements.txt
 ```
 
-**微调脚本参数说明：**
+#### LoRA 配置
+
+在 `configs` 文件夹里有各个模型的 LoRA 配置文件，可以自定义修改。配置文件内容举例如下：
+
+```yaml
+{
+    "lora_r": 8,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_target_modules": [
+        "query_key_value",
+        "dense",
+        "dense_h_to_4h",
+        "dense_4h_to_h"
+    ],
+    "modules_to_save": null
+}
+```
+
+字段说明：
+
+- `lora_r`：LoRA 的秩 $r$；
+- `lora_alpha`：$\frac{\alpha}{r} \Delta Wx$ 中的 $\alpha$；
+- `lora_dropout`：LoRA 层的 dropout 概率；
+- `lora_target_modules`：LoRA 挂在哪些 modules 上；
+- `modules_to_save`：除了 LoRA 层外，还有哪些 modules 被设为可训练的，并且会被保存在最后的 checkpoint 中。
+
+#### Deepspeed 配置
+
+这里采用 ZeRO2 配置：
+
+```yaml
+{
+    "fp16": {
+        "enabled": "auto",
+        "loss_scale": 0,
+        "loss_scale_window": 100,
+        "initial_scale_power": 16,
+        "hysteresis": 2,
+        "min_loss_scale": 1e-10
+    },
+    "bf16": {
+        "enabled": "auto"
+    },
+    "zero_optimization": {
+        "stage": 2,
+        "allgather_partitions": true,
+        "allgather_bucket_size": 5e8,
+        "overlap_comm": true,
+        "reduce_scatter": true,
+        "reduce_bucket_size": 5e8,
+        "contiguous_gradients": true
+    },
+
+    "gradient_accumulation_steps": "auto",
+    "gradient_clipping": "auto",
+    "steps_per_print": 2000,
+    "train_batch_size": "auto",
+    "train_micro_batch_size_per_gpu": "auto",
+    "wall_clock_breakdown": false
+}
+```
+
+关于多卡并行训练的策略，可参考[这里](https://huggingface.co/docs/transformers/perf_train_gpu_many)。
+
+#### 微调
 
 ```shell
 lora_config="lora_config_chatglm_6b"
@@ -72,30 +158,14 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
 
 
 
-
-
-**微调ChatGLM-6B：**
-
-
-
-
-
-### 3、推理
-
-
+### 4、推理
 
 **结果示例：**
-
-
-
-
 
 **问题记录：**
 
 - 如果 `/work`目录没有权限，要加环境变量：`export HF_MODULES_CACHE=~/.cache/huggingface`
 - sh添加权限： `chmod u+x xxx.sh`
-
-
 
 ## 代码讲解与基础知识
 
@@ -105,10 +175,13 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
 
 ## 致谢
 
-此代码参考了以下优秀的开源项目：
+感谢社区优秀的开源大模型：[ChatGLM-6B](https://github.com/THUDM/ChatGLM-6B) ([ChatGLM2](https://github.com/THUDM/ChatGLM2-6B))、[Chinese-LLaMA-Alpaca](https://github.com/ymcui/Chinese-LLaMA-Alpaca)、[openllama](https://github.com/openlm-research/open_llama)、[BLOOM](https://huggingface.co/bigscience)、[BELLE](https://github.com/LianjiaTech/BELLE)、[Pythia](https://github.com/EleutherAI/pythia)、[GPTNeoX](https://github.com/EleutherAI/gpt-neox)、[百川](https://github.com/baichuan-inc/baichuan-7B)
 
-- BELLE
-- 
+此项目还参考了以下优秀的开源项目：
+
+- [PromptCBLUE](https://github.com/michael-wzhu/PromptCBLUE)
+
+## 学习交流群
 
 
 
@@ -119,8 +192,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
 ```latex
 @software{LLMs_train,
   title = {{LLMs_train: A Set of Code to Fine-Tune Large Language Models}},
-  author = {5663015},
+  author = {Xudong Li},
+  year = {2023},
   url = {https://www.github.com/5663015/LLMs_train},
 }
 ```
-

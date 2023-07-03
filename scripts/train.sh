@@ -21,42 +21,10 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 16 \
-    --max_steps 10000 \
+    --max_steps 2000 \
     --logging_steps 10 \
-    --save_steps 300 \
+    --save_steps 200 \
     --learning_rate $LR \
     --lora_config configs/${lora_config}.json \
+    --modules_to_save ${modules_to_save} \
         > experiments/outputs/PromptCBLUE-chatglm-6b-lora-$LR/log 2>&1 &
-
-
-# model_name_or_path='checkpoints/BelleGroup-BELLE-LLaMA-EXT-13B'
-# train_file='data/instruction_NLPEC/train_result.json'
-# validation_file='data/instruction_NLPEC/dev_result.json'
-# cutoff_len=512
-# output_dir='experiments/BelleGroup-BELLE-LLaMA-EXT-13B'
-
-# CUDA_VISIBLE_DEVICES=0,1,2,3,6,7 nohup torchrun --nproc_per_node 6 train/src/train.py \
-#     --model_name_or_path ${model_name_or_path} \
-#     --llama \
-#     --use_lora True \
-#     --use_int8_training \
-#     --lora_config train/configs/lora_config_llama.json \
-#     --train_file ${train_file} \
-#     --validation_file ${validation_file} \
-#     --per_device_train_batch_size 4 \
-#     --per_device_eval_batch_size 2 \
-#     --gradient_accumulation_steps 4 \
-#     --num_train_epochs 2 \
-#     --model_max_length ${cutoff_len} \
-#     --save_strategy "steps" \
-#     --save_total_limit 3 \
-#     --learning_rate 5e-5 \
-#     --weight_decay 0.00001 \
-#     --warmup_ratio 0.05 \
-#     --lr_scheduler_type "cosine" \
-#     --logging_steps 10 \
-#     --evaluation_strategy "steps" \
-#     --fp16 True \
-#     --seed 1234 \
-#     --gradient_checkpointing True \
-#     --output_dir ${output_dir} > experiments/outputs2/log 2>1 &
