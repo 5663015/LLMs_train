@@ -5,6 +5,7 @@ import os
 os.environ["WANDB_DISABLED"] = "true"
 import sys
 import math
+import shutil
 from typing import List
 from dataclasses import dataclass, field
 from typing import Optional
@@ -91,6 +92,8 @@ def main():
     global_rank = torch.distributed.get_rank()
     
     # 建立logging
+    if not os.path.exists(training_args.output_dir):
+        os.makedirs(training_args.output_dir)
     log_file = os.path.join(training_args.output_dir,'print_log.txt')
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -253,7 +256,7 @@ def main():
 
     with training_args.main_process_first(desc="loading and tokenization"):
         # data generation
-        data_generator = DataGenerate(tokenizer)
+        data_generator = DataGenerate(tokenizer, training_args)
 
         assert os.path.exists(data_args.train_file), "{} file not exists".format(data_args.train_file)
         if data_args.train_file.endswith(".json") or data_args.train_file.endswith(".jsonl"):
@@ -272,7 +275,7 @@ def main():
         )
         val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
         val_data = val_data["train"].shuffle().map(
-            data_generator.generate_for_IMCS_DAC_test,
+            data_generator.generate_for_IMCS_DAC_train,
             batched=True,
             remove_columns=column_names,
             load_from_cache_file=False,
@@ -287,8 +290,8 @@ def main():
 
     batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
     t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
-    training_args.eval_steps = max(t_total // 5, 5)
-    training_args.save_steps = training_args.eval_steps
+    # training_args.eval_steps = max(t_total // 5, 5)
+    # training_args.save_steps = training_args.eval_steps
     training_args.warmup_steps = int(t_total*training_args.warmup_ratio) if training_args.warmup_ratio>0.0 else training_args.warmup_steps
     print_rank_0("num_gpus = {}, training_nums = {}, t_total = {}, warmup_steps = {}, eval_steps = {}, save_steps = {}".format(num_gpus, training_nums, t_total, training_args.warmup_steps, training_args.eval_steps, training_args.save_steps), log_file, global_rank)
     print_rank_0("val data nums = {}, training_nums = {}, batch_size = {}".format(len(val_data), training_nums, batch_size), log_file, global_rank)
@@ -339,6 +342,11 @@ def main():
         model.save_pretrained(training_args.output_dir)
 
     trainer.save_model() # https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py#L2808
+    trainer.save_state()
+    tokenizer.save_pretrained(training_args.output_dir)
+    shutil.copyfile(
+        os.path.join(training_args.output_dir, 'pytorch_model.bin'),
+        os.path.join(training_args.output_dir, 'adapter_model.bin'))
 
     # Save model as .pt
     if model_args.torchscript:

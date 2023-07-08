@@ -3,10 +3,11 @@ import copy
 IGNORE_INDEX = -100
 
 class DataGenerate:
-	def __init__(self, tokenizer):
+	def __init__(self, tokenizer, training_args):
 		self.tokenizer = tokenizer
+		self.training_args = training_args
 
-	def generate_and_tokenize_prompt(self, data_point, training_args):
+	def generate_and_tokenize_prompt(self, data_point):
 		input_ids = []
 		labels = []
 		source = data_point["conversations"]
@@ -23,8 +24,8 @@ class DataGenerate:
 				input_ids += [self.tokenizer.eos_token_id]#make sure eos_token_id is correct
 				labels += [self.tokenizer.eos_token_id]
 
-		input_ids = input_ids[:training_args.model_max_length-1]
-		labels = labels[:training_args.model_max_length-1]
+		input_ids = input_ids[:self.training_args.model_max_length-1]
+		labels = labels[:self.training_args.model_max_length-1]
 		if not any(x > -100 for x in labels):
 			labels[18:24] = input_ids[18:24]#labels can not have all values being -100. 18 and 24 are just random numbers
 
