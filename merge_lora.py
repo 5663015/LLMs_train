@@ -30,6 +30,7 @@ parser.add_argument('--output_dir', default='./', type=str)
 
 emb_to_model_size = {
     512: '70M',
+    2048: '1B',
     4096 : '7B',
     5120 : '13B',
     6656 : '33B',
