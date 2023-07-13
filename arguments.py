@@ -140,10 +140,10 @@ class TrainingArguments(TrainingArguments):
         default=False,
         metadata={"help": "Whether to use int8 training."}
     )
-    lora_config: Optional[str] = field(
-        default=None,
-        metadata={"help": "LoRA config file."},
-    )
+    # lora_config: Optional[str] = field(
+    #     default=None,
+    #     metadata={"help": "LoRA config file."},
+    # )
     ddp_find_unused_parameters: bool = field(
         default=False,
         metadata={"help": "ddp_find_unused_parameters"}

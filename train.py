@@ -37,13 +37,10 @@ from transformers import (
     AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
-    LlamaConfig,
     LlamaForCausalLM,
     LlamaTokenizer,
-    BloomConfig,
     BloomForCausalLM,
     BloomTokenizerFast,
-    GPTNeoXConfig,
     GPTNeoXForCausalLM,
     GPTNeoXTokenizerFast,
     HfArgumentParser,
@@ -58,37 +55,26 @@ from transformers.utils import add_start_docstrings
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from transformers.trainer_callback import TrainerCallback
 
+from config import CONFIG
 from arguments import TrainingArguments, ModelArguments, DataArguments
 from data_generate import DataGenerate
 from utils import print_rank_0
 
+
 logger = logging.getLogger(__name__)
-IGNORE_INDEX = -100
-
-MODELS_MAP = {
-        'llama': LlamaForCausalLM,
-        'glm': AutoModel,
-        'bllom': BloomForCausalLM,
-        'pythia': GPTNeoXForCausalLM,
-        'baichuan': AutoModelForCausalLM
-    }
-
-# save peft at train end
-class SavePeftModelAtEndCallback(TrainerCallback):
-    def on_train_end(self, args, state, control, **kwargs):
-        peft_model_path = os.path.join(args.output_dir, "adapter_model")
-        kwargs["model"].save_pretrained(peft_model_path)
-        return control
 
 
 def main():
-    # 参数
+    # ================================================================================
+    # 参数、log等准备
+    # ================================================================================
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # ddp相关
+    cfg = CONFIG    # 配置
+
     world_size = int(os.environ.get("WORLD_SIZE", 1))
-    ddp = world_size != 1
+    # ddp = world_size != 1
     global_rank = torch.distributed.get_rank()
     
     # 建立logging
@@ -142,9 +128,11 @@ def main():
         else getattr(torch, model_args.torch_dtype)
     )
 
-    # models
-    if model_args.model_type in MODELS_MAP.keys():
-        model = MODELS_MAP[model_args.model_type].from_pretrained(
+    # ================================================================================
+    # 建立model、分词器、LORA
+    # ================================================================================
+    if model_args.model_type in cfg.MODELS_MAP.keys():
+        model = cfg.MODELS_MAP[model_args.model_type].from_pretrained(
             model_args.model_name_or_path,
             torch_dtype=torch_dtype,
             trust_remote_code=True,
@@ -157,66 +145,39 @@ def main():
             trust_remote_code=True,
             torchscript=model_args.torchscript
         )
-    
-    # if model_args.model_type == 'llama':
-    #     model = AutoModelForCausalLM.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         torch_dtype=torch_dtype,
-    #         trust_remote_code=True
-    #     )
-    # elif model_args.model_type == 'glm':
-    #     model = AutoModel.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         torch_dtype=torch_dtype,
-    #         trust_remote_code=True
-    #     ).half()    # ChatGLM
-    # elif model_args.model_type == 'pythia':
-    #     model = AutoModelForCausalLM.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         torch_dtype=torch_dtype,
-    #         trust_remote_code=True,
-    #         torchscript=model_args.torchscript
-    #     )
-    # elif model_args.model_type == 'gpt-neox':
-    #     configuration = GPTNeoXConfig().from_pretrained(model_args.model_name_or_path)
-    #     model = GPTNeoXForCausalLM.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         config=configuration,
-    #         torch_dtype=torch_dtype,
-    #         trust_remote_code=True
-    #     )
-    # else:
-    #     model = AutoModel.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         torch_dtype=torch_dtype,
-    #         trust_remote_code=True,
-    #         torchscript=model_args.torchscript
-    #     )
 
     # tokenizers
-    if model_args.model_type == 'llama':
-        tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
-        print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
-        tokenizer.eos_token_id = 2
-        tokenizer.bos_token_id = 1
-        tokenizer.pad_token_id = 0
-        tokenizer.padding_side = "left"  # Allow batched inference
-        tokenizer.pad_token = tokenizer.eos_token
-    elif model_args.model_type == 'glm':
+    if model_args.model_type in cfg.TOKENIZER_MAP.keys():
+        tokenizer = cfg.TOKENIZER_MAP[model_args.model_type].from_pretrained(model_args.model_name_or_path)
+    else:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
             trust_remote_code=True
         )
-    elif model_args.model_type == 'pythia':
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_args.model_name_or_path,
-            trust_remote_code=True
-        )
-        tokenizer.eos_token_id = 2
-        tokenizer.bos_token_id = 1
-        tokenizer.pad_token_id = 0
-    elif model_args.model_type == 'gpt-neox':
-        tokenizer = GPTNeoXTokenizerFast.from_pretrained("gpt2")
+
+    # if model_args.model_type == 'llama':
+    #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
+    #     print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
+    #     tokenizer.eos_token_id = 2
+    #     tokenizer.bos_token_id = 1
+    #     tokenizer.pad_token_id = 0
+    #     tokenizer.padding_side = "left"  # Allow batched inference
+    #     tokenizer.pad_token = tokenizer.eos_token
+    # elif model_args.model_type == 'glm':
+    #     tokenizer = AutoTokenizer.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         trust_remote_code=True
+    #     )
+    # elif model_args.model_type == 'pythia':
+    #     tokenizer = AutoTokenizer.from_pretrained(
+    #         model_args.model_name_or_path,
+    #         trust_remote_code=True
+    #     )
+    #     tokenizer.eos_token_id = 2
+    #     tokenizer.bos_token_id = 1
+    #     tokenizer.pad_token_id = 0
+    # elif model_args.model_type == 'gpt-neox':
+    #     tokenizer = GPTNeoXTokenizerFast.from_pretrained("gpt2")
 
     print_rank_0("tokenizer.eos_token_id = {}".format(tokenizer.eos_token_id), log_file, global_rank)
     print_rank_0("tokenizer.pad_token_id = {}".format(tokenizer.pad_token_id), log_file, global_rank)
@@ -224,10 +185,11 @@ def main():
 
     # peft model
     if training_args.use_lora:
-        print_rank_0("Loading lora config from {}".format(training_args.lora_config), log_file, global_rank)
-        lora_config = json.load(open(training_args.lora_config))
+        # print_rank_0("Loading lora config from {}".format(training_args.lora_config), log_file, global_rank)
+        # lora_config = json.load(open(training_args.lora_config))
+        lora_config = cfg.LORA_MAP[model_args.model_type]
         print_rank_0("Lora config: {}".format(lora_config), log_file, global_rank)
-        config = LoraConfig(
+        peft_config = LoraConfig(
             r=lora_config['lora_r'],
             lora_alpha=lora_config['lora_alpha'],
             target_modules=lora_config['lora_target_modules'],
@@ -242,18 +204,17 @@ def main():
         else:
             def make_inputs_require_grad(module, input, output):
                 output.requires_grad_(True)
-
             model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
 
-        model = get_peft_model(model, config)
+        model = get_peft_model(model, peft_config)
         model.print_trainable_parameters() 
 
     if training_args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
 
-    # model.is_parallelizable = True
-    # model.model_parallel = True
-
+    # ================================================================================
+    # 构建数据
+    # ================================================================================
     with training_args.main_process_first(desc="loading and tokenization"):
         # data generation
         data_generator = DataGenerate(tokenizer, training_args)
@@ -285,9 +246,11 @@ def main():
     print_rank_0("Eval tokenized example: {}".format(val_data[0]), log_file, global_rank)
     print_rank_0("Train tokenized example: {}".format(train_data[0]), log_file, global_rank)
 
-    training_nums = len(data['train'])
+    # ================================================================================
+    # 训练
+    # ================================================================================
     num_gpus = torch.cuda.device_count()
-
+    training_nums = len(data['train'])
     batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
     t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
     # training_args.eval_steps = max(t_total // 5, 5)
@@ -348,7 +311,7 @@ def main():
         os.path.join(training_args.output_dir, 'pytorch_model.bin'),
         os.path.join(training_args.output_dir, 'adapter_model.bin'))
 
-    # Save model as .pt
+    # Save model as torchscript
     if model_args.torchscript:
         traced_model = torch.jit.trace(model, 
                         [torch.tensor([train_data[0]['input_ids']]).cuda(), torch.tensor([train_data[0]['labels']]).cuda()])
@@ -359,3 +322,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
