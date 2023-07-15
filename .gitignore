@@ -199,3 +199,4 @@ api_pythia.py
 nohup.out
 scripts/train_pythia.sh
 scripts/train_test.sh
+data_generate_custom.py

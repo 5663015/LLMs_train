@@ -6,7 +6,7 @@ your_checkpopint_path="./experiments/outputs"  # 填入用来存储模型的路�
 
 peft_path=""  # 如果之前训练过，且存储了peft权重，则设置为peft权重的文件夹路径
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
+CUDA_VISIBLE_DEVICES=0 nohup torchrun --nproc_per_node 1 train.py \
     --model_name_or_path $model_name_or_path \
     --use_lora True \
     --train_file $your_data_path/train.json \

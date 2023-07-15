@@ -131,8 +131,8 @@ def main():
     # ================================================================================
     # 建立model、分词器、LORA
     # ================================================================================
-    if model_args.model_type in cfg.MODELS_MAP.keys():
-        model = cfg.MODELS_MAP[model_args.model_type].from_pretrained(
+    if model_args.model_type in cfg.MODEL_MAP.keys():
+        model = cfg.MODEL_MAP[model_args.model_type].from_pretrained(
             model_args.model_name_or_path,
             torch_dtype=torch_dtype,
             trust_remote_code=True,
