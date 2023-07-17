@@ -84,6 +84,10 @@ class DataArguments:
             "help": "The percentage of the train set used as validation set in case there's no validation split"
         },
     )
+    preprocessing_num_workers: Optional[int] = field(
+        default=None,
+        metadata={"help": "The number of processes to use for the preprocessing."},
+    )
     prompt_column: Optional[str] = field(
         default=None,
         metadata={"help": "The name of the column in the datasets containing the full texts (for summarization)."},

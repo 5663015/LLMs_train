@@ -19,13 +19,6 @@ from transformers.utils import add_start_docstrings
 import transformers
 from datasets import load_dataset
 import copy
-
-"""
-Unused imports:
-import torch.nn as nn
-import bitsandbytes as bnb
-"""
-
 from peft import (
     LoraConfig,
     get_peft_model,
@@ -35,14 +28,7 @@ from peft import (
 )
 from transformers import (
     AutoModel,
-    AutoModelForCausalLM,
     AutoTokenizer,
-    LlamaForCausalLM,
-    LlamaTokenizer,
-    BloomForCausalLM,
-    BloomTokenizerFast,
-    GPTNeoXForCausalLM,
-    GPTNeoXTokenizerFast,
     HfArgumentParser,
     TrainingArguments,
     Trainer,
@@ -57,7 +43,8 @@ from transformers.trainer_callback import TrainerCallback
 
 from config import CONFIG
 from arguments import TrainingArguments, ModelArguments, DataArguments
-from data_generate import DataGenerate
+# from data_generate import DataGenerate
+from data_generate_custom import DataGenerate
 from utils import print_rank_0
 
 
@@ -137,18 +124,21 @@ def main():
             torch_dtype=torch_dtype,
             trust_remote_code=True,
             torchscript=model_args.torchscript
-        )
+        ).half()
     else:
         model = AutoModel.from_pretrained(
             model_args.model_name_or_path,
             torch_dtype=torch_dtype,
             trust_remote_code=True,
             torchscript=model_args.torchscript
-        )
+        ).half()
 
     # tokenizers
     if model_args.model_type in cfg.TOKENIZER_MAP.keys():
-        tokenizer = cfg.TOKENIZER_MAP[model_args.model_type].from_pretrained(model_args.model_name_or_path)
+        tokenizer = cfg.TOKENIZER_MAP[model_args.model_type].from_pretrained(
+            model_args.model_name_or_path,
+            trust_remote_code=True
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
@@ -185,14 +175,13 @@ def main():
 
     # peft model
     if training_args.use_lora:
-        # print_rank_0("Loading lora config from {}".format(training_args.lora_config), log_file, global_rank)
-        # lora_config = json.load(open(training_args.lora_config))
         lora_config = cfg.LORA_MAP[model_args.model_type]
         print_rank_0("Lora config: {}".format(lora_config), log_file, global_rank)
         peft_config = LoraConfig(
             r=lora_config['lora_r'],
             lora_alpha=lora_config['lora_alpha'],
-            target_modules=lora_config['lora_target_modules'],
+            target_modules=lora_config['lora_target_modules'].split(','),
+            modules_to_save=lora_config['modules_to_save'].split(','),
             lora_dropout=lora_config['lora_dropout'],
             bias="none",
             task_type="CAUSAL_LM",
@@ -217,7 +206,7 @@ def main():
     # ================================================================================
     with training_args.main_process_first(desc="loading and tokenization"):
         # data generation
-        data_generator = DataGenerate(tokenizer, training_args)
+        data_generator = DataGenerate(tokenizer, model_args, data_args, training_args)
 
         assert os.path.exists(data_args.train_file), "{} file not exists".format(data_args.train_file)
         if data_args.train_file.endswith(".json") or data_args.train_file.endswith(".jsonl"):
@@ -228,41 +217,54 @@ def main():
         data.cleanup_cache_files()
         column_names = data["train"].column_names
         train_data = data["train"].shuffle().map(
-            data_generator.generate_for_IMCS_DAC_train,
+            # data_generator.generate_for_PromptCBLUE_train,
+            data_generator.chatglm_tokenize,
             batched=True,
             remove_columns=column_names,
             load_from_cache_file=False,
+            num_proc=data_args.preprocessing_num_workers,
             desc="Running tokenizer on train dataset",
         )
-        val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
-        val_data = val_data["train"].shuffle().map(
-            data_generator.generate_for_IMCS_DAC_train,
-            batched=True,
-            remove_columns=column_names,
-            load_from_cache_file=False,
-            desc="Running tokenizer on validation dataset",
-        )
+        if data_args.validation_file is not None:
+            val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
+            val_data = val_data["train"].shuffle().map(
+                # data_generator.generate_for_PromptCBLUE_train,
+                data_generator.chatglm_tokenize,
+                batched=True,
+                remove_columns=column_names,
+                load_from_cache_file=False,
+                num_proc=data_args.preprocessing_num_workers,
+                desc="Running tokenizer on validation dataset",
+            )
+            print_rank_0("Eval tokenized example: ", log_file, global_rank)
+            print_rank_0("input ids: {}".format(val_data[0]['input_ids']), log_file, global_rank)
+            print_rank_0("inputs: {}".format(tokenizer.decode(val_data[0]['input_ids'])), log_file, global_rank)
+        else:
+            val_data = None
 
-    print_rank_0("Eval tokenized example: {}".format(val_data[0]), log_file, global_rank)
-    print_rank_0("Train tokenized example: {}".format(train_data[0]), log_file, global_rank)
+    print_rank_0("Train tokenized example: ", log_file, global_rank)
+    print_rank_0("input ids: {}".format(train_data[0]['input_ids']), log_file, global_rank)
+    print_rank_0("inputs: {}".format(tokenizer.decode(train_data[0]['input_ids'])), log_file, global_rank)
 
     # ================================================================================
     # 训练
     # ================================================================================
-    num_gpus = torch.cuda.device_count()
-    training_nums = len(data['train'])
-    batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
-    t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
-    # training_args.eval_steps = max(t_total // 5, 5)
-    # training_args.save_steps = training_args.eval_steps
-    training_args.warmup_steps = int(t_total*training_args.warmup_ratio) if training_args.warmup_ratio>0.0 else training_args.warmup_steps
-    print_rank_0("num_gpus = {}, training_nums = {}, t_total = {}, warmup_steps = {}, eval_steps = {}, save_steps = {}".format(num_gpus, training_nums, t_total, training_args.warmup_steps, training_args.eval_steps, training_args.save_steps), log_file, global_rank)
-    print_rank_0("val data nums = {}, training_nums = {}, batch_size = {}".format(len(val_data), training_nums, batch_size), log_file, global_rank)
+    # num_gpus = torch.cuda.device_count()
+    # training_nums = len(data['train'])
+    # batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
+    # t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
+    # # training_args.eval_steps = max(t_total // 5, 5)
+    # # training_args.save_steps = training_args.eval_steps
+    # training_args.warmup_steps = int(t_total*training_args.warmup_ratio) if training_args.warmup_ratio>0.0 else training_args.warmup_steps
+    # print_rank_0("num_gpus = {}, training_nums = {}, t_total = {}, warmup_steps = {}, eval_steps = {}, save_steps = {}".format(num_gpus, training_nums, t_total, training_args.warmup_steps, training_args.eval_steps, training_args.save_steps), log_file, global_rank)
+    # if val_data is not None:
+    #     print_rank_0("val data nums = {}, training_nums = {}, batch_size = {}".format(len(val_data), training_nums, batch_size), log_file, global_rank)
 
     #Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
+        tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=val_data,
         data_collator=transformers.DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
@@ -270,24 +272,24 @@ def main():
     print_rank_0(f"Using {training_args.half_precision_backend} half precision backend", log_file, global_rank)
 
     # Train!
-    len_dataloader = len(trainer.get_train_dataloader())
-    num_update_steps_per_epoch = len_dataloader // training_args.gradient_accumulation_steps
+    # len_dataloader = len(trainer.get_train_dataloader())
+    # num_update_steps_per_epoch = len_dataloader // training_args.gradient_accumulation_steps
 
-    total_train_batch_size = training_args.train_batch_size * training_args.gradient_accumulation_steps * training_args.world_size
-    num_examples = trainer.num_examples(trainer.get_train_dataloader())
-    num_train_samples = num_examples * training_args.num_train_epochs
-    max_steps = math.ceil(training_args.num_train_epochs * num_update_steps_per_epoch)
-    trainable_params = get_model_param_count(model, trainable_only=True)
-    all_params = get_model_param_count(model, trainable_only=False)
-    print_rank_0("***** Running training *****", log_file, global_rank)
-    print_rank_0(f"  Num examples = {num_examples}", log_file, global_rank)
-    print_rank_0(f"  Num train samples = {num_train_samples}", log_file, global_rank)
-    print_rank_0(f"  world_size = {world_size}", log_file, global_rank)
-    print_rank_0(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_train_batch_size}", log_file, global_rank)
-    print_rank_0(f"  Gradient Accumulation steps = {training_args.gradient_accumulation_steps}", log_file, global_rank)
-    print_rank_0(f"  Total optimization steps = {max_steps}", log_file, global_rank)
-    print_rank_0(f"  Number of all parameters = {all_params}", log_file, global_rank)
-    print_rank_0(f"  Number of trainable parameters = {trainable_params}, {trainable_params / all_params * 100}%", log_file, global_rank)
+    # total_train_batch_size = training_args.train_batch_size * training_args.gradient_accumulation_steps * training_args.world_size
+    # num_examples = trainer.num_examples(trainer.get_train_dataloader())
+    # num_train_samples = num_examples * training_args.num_train_epochs
+    # max_steps = math.ceil(training_args.num_train_epochs * num_update_steps_per_epoch)
+    # trainable_params = get_model_param_count(model, trainable_only=True)
+    # all_params = get_model_param_count(model, trainable_only=False)
+    # print_rank_0("***** Running training *****", log_file, global_rank)
+    # print_rank_0(f"  Num examples = {num_examples}", log_file, global_rank)
+    # print_rank_0(f"  Num train samples = {num_train_samples}", log_file, global_rank)
+    # print_rank_0(f"  world_size = {world_size}", log_file, global_rank)
+    # print_rank_0(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_train_batch_size}", log_file, global_rank)
+    # print_rank_0(f"  Gradient Accumulation steps = {training_args.gradient_accumulation_steps}", log_file, global_rank)
+    # print_rank_0(f"  Total optimization steps = {max_steps}", log_file, global_rank)
+    # print_rank_0(f"  Number of all parameters = {all_params}", log_file, global_rank)
+    # print_rank_0(f"  Number of trainable parameters = {trainable_params}, {trainable_params / all_params * 100}%", log_file, global_rank)
     
     model.config.use_cache = False
     if training_args.use_lora:
@@ -298,7 +300,12 @@ def main():
             )
         ).__get__(model, type(model))
 
-    trainer.train(resume_from_checkpoint=None)
+    checkpoint = None
+    if training_args.resume_from_checkpoint is not None:
+        checkpoint = training_args.resume_from_checkpoint
+    elif last_checkpoint is not None:
+        checkpoint = last_checkpoint
+    trainer.train(resume_from_checkpoint=checkpoint)
 
     # Save adapter_model.bin and adapter_config.json
     if training_args.use_lora:

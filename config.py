@@ -37,46 +37,36 @@ class CONFIG:
             "lora_r": 8,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
-            "lora_target_modules": [
-                "query_key_value"
-            ],
-            "modules_to_save": None
+            "lora_target_modules": "q_proj,v_proj,k_proj,o_proj,gate_proj,down_proj,up_proj",
+            "modules_to_save": "null"
         },
         'glm': {
             "lora_r": 8,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
-            "lora_target_modules": [
-                "query_key_value"
-            ],
-            "modules_to_save": None
+            "lora_target_modules": "query_key_value,dense,dense_h_to_4h,dense_4h_to_h",
+            "modules_to_save": "null"
         },
         'bllom': {
             "lora_r": 8,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
-            "lora_target_modules": [
-                "query_key_value"
-            ],
-            "modules_to_save": None
+            "lora_target_modules": "query_key_value",
+            "modules_to_save": "null"
         },
         'pythia': {
             "lora_r": 8,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
-            "lora_target_modules": [
-                "query_key_value"
-            ],
-            "modules_to_save": None
+            "lora_target_modules": "query_key_value",
+            "modules_to_save": "null"
         },
         'baichuan': {
             "lora_r": 8,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
-            "lora_target_modules": [
-                "query_key_value"
-            ],
-            "modules_to_save": None
+            "lora_target_modules": "query_key_value",
+            "modules_to_save": "null"
         }
     }
 
