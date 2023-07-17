@@ -24,7 +24,7 @@ class DataGenerate:
 			labels += label
 			# add eos at every end of assistant sentence
 			if sentence_from != 'human':
-				input_ids += [self.tokenizer.eos_token_id]#make sure eos_token_id is correct
+				input_ids += [self.tokenizer.eos_token_id]	# make sure eos_token_id is correct
 				labels += [self.tokenizer.eos_token_id]
 
 		input_ids = input_ids[:self.training_args.model_max_length-1]
@@ -52,17 +52,18 @@ class DataGenerate:
 			a_ids = self.tokenizer.encode(text=prompt, add_special_tokens=False)
 			b_ids = self.tokenizer.encode(text=answer, add_special_tokens=False)
 
-			# xxx 
-			if len(a_ids) > self.data_args.max_source_length:
-				a_ids = a_ids[: self.data_args.max_source_length]
+			# xxx <eos>
+			if len(a_ids) > self.data_args.max_source_length - 1:
+				a_ids = a_ids[: self.data_args.max_source_length - 1]
 			# <bos> xxx <eos>
 			if len(b_ids) > self.data_args.max_target_length - 2:
 				b_ids = b_ids[: self.data_args.max_target_length - 2]
-			input_ids = a_ids + [self.tokenizer.bos_token_id] + \
+
+			input_ids = a_ids + [self.tokenizer.eos_token_id, self.tokenizer.bos_token_id] + \
 						b_ids + self.tokenizer.eos_token_id
 			pad_len = self.max_source_length + self.max_target_length - len(input_ids)
 			input_ids = input_ids + [self.tokenizer.pad_token_id] * pad_len
-			labels = [self.tokenizer.pad_token_id] * len(a_ids) + input_ids[len(a_ids):]
+			labels = [IGNORE_INDEX] * (len(a_ids) + 1) + input_ids[len(a_ids) + 1:]
 
 			model_inputs["input_ids"].append(input_ids)
 			model_inputs["labels"].append(labels)
@@ -173,4 +174,30 @@ class DataGenerate:
 '''
 
 
+if __name__ == "__main__":
+	import os
+	from transformers import AutoTokenizer, LlamaTokenizer
+	from config import CONFIG
+	import warnings
+	warnings.filterwarnings("default")
 
+	text = "找出归一后的标准词：\n肝脏肿物切除术后\n选项：手术后胸腔积液，心脏术后，玻璃体切除术后视网膜脱离 \
+				\n说明：从候选的若干个ICD-10诊断标准词中选择出与原诊断描述匹配的词"
+	for model_type, models in {
+		'llama': ['llama-7b-hf', 'llama-13b-hf'],
+		'glm': ['chatglm-6b'],
+	}.items():
+		for model in models:
+			print('=' * 100)
+			print(model_type, model)
+			tokenizer = CONFIG.TOKENIZER_MAP[model_type].from_pretrained(
+					os.path.join('../../models', model),
+					trust_remote_code=True
+				)
+			print('bos: {}, eos: {}, pad: {}'.format(tokenizer.bos_token, tokenizer.eos_token, tokenizer.pad_token))
+			print('bos_id: {}, eos_id: {}, pad_id: {}'.format(tokenizer.bos_token_id, tokenizer.eos_token_id, tokenizer.pad_token_id))
+
+			ids = tokenizer.encode(text=text, add_special_tokens=False)
+			print('分词后的id：', ids)
+			print('文本长度：{}，分词后ids长度：{}'.format(len(text), len(ids)))
+			print('ids解码后：', tokenizer.decode(ids))

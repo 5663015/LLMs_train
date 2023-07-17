@@ -249,17 +249,6 @@ def main():
     # ================================================================================
     # 训练
     # ================================================================================
-    # num_gpus = torch.cuda.device_count()
-    # training_nums = len(data['train'])
-    # batch_size = training_args.per_device_train_batch_size * training_args.world_size * training_args.gradient_accumulation_steps
-    # t_total = math.ceil(training_nums/batch_size) * training_args.num_train_epochs
-    # # training_args.eval_steps = max(t_total // 5, 5)
-    # # training_args.save_steps = training_args.eval_steps
-    # training_args.warmup_steps = int(t_total*training_args.warmup_ratio) if training_args.warmup_ratio>0.0 else training_args.warmup_steps
-    # print_rank_0("num_gpus = {}, training_nums = {}, t_total = {}, warmup_steps = {}, eval_steps = {}, save_steps = {}".format(num_gpus, training_nums, t_total, training_args.warmup_steps, training_args.eval_steps, training_args.save_steps), log_file, global_rank)
-    # if val_data is not None:
-    #     print_rank_0("val data nums = {}, training_nums = {}, batch_size = {}".format(len(val_data), training_nums, batch_size), log_file, global_rank)
-
     #Trainer
     trainer = Trainer(
         model=model,
@@ -270,27 +259,7 @@ def main():
         data_collator=transformers.DataCollatorForSeq2Seq(tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True)
     )
     print_rank_0(f"Using {training_args.half_precision_backend} half precision backend", log_file, global_rank)
-
-    # Train!
-    # len_dataloader = len(trainer.get_train_dataloader())
-    # num_update_steps_per_epoch = len_dataloader // training_args.gradient_accumulation_steps
-
-    # total_train_batch_size = training_args.train_batch_size * training_args.gradient_accumulation_steps * training_args.world_size
-    # num_examples = trainer.num_examples(trainer.get_train_dataloader())
-    # num_train_samples = num_examples * training_args.num_train_epochs
-    # max_steps = math.ceil(training_args.num_train_epochs * num_update_steps_per_epoch)
-    # trainable_params = get_model_param_count(model, trainable_only=True)
-    # all_params = get_model_param_count(model, trainable_only=False)
-    # print_rank_0("***** Running training *****", log_file, global_rank)
-    # print_rank_0(f"  Num examples = {num_examples}", log_file, global_rank)
-    # print_rank_0(f"  Num train samples = {num_train_samples}", log_file, global_rank)
-    # print_rank_0(f"  world_size = {world_size}", log_file, global_rank)
-    # print_rank_0(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_train_batch_size}", log_file, global_rank)
-    # print_rank_0(f"  Gradient Accumulation steps = {training_args.gradient_accumulation_steps}", log_file, global_rank)
-    # print_rank_0(f"  Total optimization steps = {max_steps}", log_file, global_rank)
-    # print_rank_0(f"  Number of all parameters = {all_params}", log_file, global_rank)
-    # print_rank_0(f"  Number of trainable parameters = {trainable_params}, {trainable_params / all_params * 100}%", log_file, global_rank)
-    
+  
     model.config.use_cache = False
     if training_args.use_lora:
         old_state_dict = model.state_dict

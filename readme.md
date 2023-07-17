@@ -2,25 +2,26 @@
 
 本项目旨在微调多类基座大模型，实现 LORA + DeepSpeed + 单卡/多卡微调，目前已测试的模型见下表：
 
-| 测试模型             | 语言 | 测试权重                                                                                    | 显存占用/fp16 |
-| -------------------- | ---- | ------------------------------------------------------------------------------------------- | ------------- |
-| Chinese-LLaMA-Alpaca | 中文 | [chinese-llama-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-7b)     |               |
-|                      |      | [chinese-llama-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-13b)   |               |
-|                      |      | [chinese-alpaca-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-7b)   |               |
+| 测试模型             | 语言 | 测试权重                                                     | 显存占用/fp16 |
+| -------------------- | ---- | ------------------------------------------------------------ | ------------- |
+| Chinese-LLaMA-Alpaca | 中文 | [chinese-llama-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-7b) |               |
+|                      |      | [chinese-llama-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-13b) |               |
+|                      |      | [chinese-alpaca-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-7b) |               |
 |                      |      | [chinese-alpaca-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-13b) |               |
-| Open-LLaMA           | 英文 | [open_llama_13b](https://huggingface.co/openlm-research/open_llama_13b)                        |               |
-|                      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b)                          |               |
-| BELLE                | 中文 | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B)                   |               |
-|                      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B)                     |               |
-| ChatGLM-6B           | 中文 | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)                                          |               |
-|                      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)                                        |               |
-| 百川                 | 中文 | [baichuan-7B](https://huggingface.co/baichuan-inc/baichuan-7B)                                 |               |
-| TigerBot             | 中文 | [tigerbot-7b-sft](https://huggingface.co/TigerResearch/tigerbot-7b-sft)                        |               |
-|                      |      | [tigerbot-7b-base](https://huggingface.co/TigerResearch/tigerbot-7b-base)                      |               |
-| Pythia               | 英文 | [pythia-70m-deduped](https://huggingface.co/EleutherAI/pythia-70m-deduped)                     |               |
-|                      |      | [pythia-1b-deduped](https://huggingface.co/EleutherAI/pythia-1b-deduped)                       |               |
-|                      |      | [pythia-6.9b-deduped](https://huggingface.co/EleutherAI/pythia-6.9b-deduped)                   |               |
-|                      |      | [pythia-12b-deduped](https://huggingface.co/EleutherAI/pythia-12b-deduped)                     |               |
+| Open-LLaMA           | 英文 | [open_llama_13b](https://huggingface.co/openlm-research/open_llama_13b) |               |
+|                      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b) |               |
+| BELLE                | 中文 | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B) |               |
+|                      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B) |               |
+| ChatGLM-6B           | 中文 | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)        |               |
+|                      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)      |               |
+| 百川                 | 中文 | [baichuan-7B](https://huggingface.co/baichuan-inc/baichuan-7B) |               |
+|                      | 中文 | [baichuan-13B-Chat](https://huggingface.co/baichuan-inc/Baichuan-13B-Chat) |               |
+| TigerBot             | 中文 | [tigerbot-7b-sft](https://huggingface.co/TigerResearch/tigerbot-7b-sft) |               |
+|                      |      | [tigerbot-7b-base](https://huggingface.co/TigerResearch/tigerbot-7b-base) |               |
+| Pythia               | 英文 | [pythia-70m-deduped](https://huggingface.co/EleutherAI/pythia-70m-deduped) |               |
+|                      |      | [pythia-1b-deduped](https://huggingface.co/EleutherAI/pythia-1b-deduped) |               |
+|                      |      | [pythia-6.9b-deduped](https://huggingface.co/EleutherAI/pythia-6.9b-deduped) |               |
+|                      |      | [pythia-12b-deduped](https://huggingface.co/EleutherAI/pythia-12b-deduped) |               |
 
 **TODO：**
 
