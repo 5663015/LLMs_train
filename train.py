@@ -43,8 +43,8 @@ from transformers.trainer_callback import TrainerCallback
 
 from config import CONFIG
 from arguments import TrainingArguments, ModelArguments, DataArguments
-# from data_generate import DataGenerate
-from data_generate_custom import DataGenerate
+from data_generate import DataGenerate
+# from data_generate_custom import DataGenerate
 from utils import print_rank_0
 
 
@@ -144,6 +144,10 @@ def main():
             model_args.model_name_or_path,
             trust_remote_code=True
         )
+    if model_args.model_type != 'glm':
+        tokenizer.bos_token_id = cfg.SPECIAL_IDS[model_args.model_name_or_path.split('/')[-1]]['bos_id']
+        tokenizer.eos_token_id = cfg.SPECIAL_IDS[model_args.model_name_or_path.split('/')[-1]]['eos_id']
+        tokenizer.pad_token_id = cfg.SPECIAL_IDS[model_args.model_name_or_path.split('/')[-1]]['pad_id']
 
     # if model_args.model_type == 'llama':
     #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
@@ -217,8 +221,8 @@ def main():
         data.cleanup_cache_files()
         column_names = data["train"].column_names
         train_data = data["train"].shuffle().map(
-            # data_generator.generate_for_PromptCBLUE_train,
             data_generator.chatglm_tokenize,
+            # data_generator.chatglm_tokenize,
             batched=True,
             remove_columns=column_names,
             load_from_cache_file=False,
@@ -228,8 +232,8 @@ def main():
         if data_args.validation_file is not None:
             val_data = load_dataset("json", data_files=data_args.validation_file, cache_dir=model_args.cache_dir)
             val_data = val_data["train"].shuffle().map(
-                # data_generator.generate_for_PromptCBLUE_train,
                 data_generator.chatglm_tokenize,
+                # data_generator.chatglm_tokenize,
                 batched=True,
                 remove_columns=column_names,
                 load_from_cache_file=False,

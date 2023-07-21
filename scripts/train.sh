@@ -1,6 +1,6 @@
 LR=2e-4
-model_name_or_path="THUDM/chatglm-6b"   # LLM底座模型路径，或者是huggingface hub上的模型名称
-model_type='glm'
+model_name_or_path="../models/pythia-12b-deduped"   # LLM底座模型路径，或者是huggingface hub上的模型名称
+model_type='pythia'
 your_data_path="./datasets/PromptCBLUE"  # 填入数据集所在的文件夹路径
 your_checkpopint_path="./experiments/outputs"  # 填入用来存储模型的路径
 max_steps=100
@@ -9,7 +9,7 @@ max_target_length=16
 
 peft_path=""  # 如果之前训练过，且存储了peft权重，则设置为peft权重的文件夹路径
 
-CUDA_VISIBLE_DEVICES=4,7 torchrun --nproc_per_node 2 --master_port 29700 train.py \
+CUDA_VISIBLE_DEVICES=3 torchrun --nproc_per_node 1 --master_port 29700 train.py \
     --deepspeed configs/ds_zero2_no_offload.json \
     --do_train \
     --do_eval \
@@ -23,7 +23,7 @@ CUDA_VISIBLE_DEVICES=4,7 torchrun --nproc_per_node 2 --master_port 29700 train.p
     --cache_dir $your_data_path \
     --prompt_column input \
     --response_column target \
-    --output_dir $your_checkpopint_path/test-pythia-1b-deduped-lora-$LR-2 \
+    --output_dir $your_checkpopint_path/test-pythia-12b-deduped-lora-$LR \
     --overwrite_output_dir \
     --max_source_length $max_source_length \
     --max_target_length $max_target_length \

@@ -194,9 +194,12 @@ fabric.properties
 __pycache__/
 datasets/
 experiments/
+tokenizer/
 api_pythia.py
 1
 nohup.out
 scripts/train_pythia.sh
 scripts/train_test.sh
 data_generate_custom.py
+test.py
+api_*.py

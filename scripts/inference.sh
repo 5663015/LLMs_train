@@ -6,10 +6,9 @@
 #     --cache_dir ./datasets/PromptCBLUE \
 #     --use_lora
 
-CUDA_VISIBLE_DEVICES=1 python inference.py \
-    --model_name_or_path ../models/pythia-12b-sft-v8-7k-steps \
-    --ckpt_path experiments/outputs/yitushibie-pythia-12b-lora-2e-4 \
-    --model_type pythia \
-    --data_file ./datasets/IMCS-DAC/datasets/test_instruction_2.json \
-    --cache_dir ./datasets/IMCS-DAC/datasets \
-    --use_lora
+CUDA_VISIBLE_DEVICES=3 python inference.py \
+    --model_name_or_path ../models/chatglm2-6b \
+    --lora_path experiments/outputs/pldccmt-45w-chatglm2-6b-lora-4e-4-1500-512-512 \
+    --model_type glm \
+    --data_file ../instruction/pldccmt-45w_dev.jsonl \
+    --output_path experiments/outputs/pldccmt-45w-chatglm2-6b-lora-4e-4-1500-512-512
