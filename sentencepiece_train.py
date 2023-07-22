@@ -25,10 +25,9 @@ if os.path.isdir(args.corpus_name_or_path):
     for file in os.listdir(args.corpus_name_or_path):
         if file.endswith('.txt'):
             corpus.append(os.path.join(args.corpus_name_or_path, file))
-    print(f'train {len(corpus)} corpus')
 else:
-    corpus = args.corpus_name_or_path
-    print('train one txt')
+    corpus = args.corpus_name_or_path.split(',')
+print(f'train {len(corpus)} corpus')
 
 
 spm.SentencePieceTrainer.train(
