@@ -2,38 +2,32 @@
 
 本项目旨在微调多类基座大模型，实现 LORA + DeepSpeed + 单卡/多卡微调，目前已测试的模型见下表：
 
-| 测试模型             | 语言 | 测试权重                                                     | 显存占用/fp16 |
-| -------------------- | ---- | ------------------------------------------------------------ | ------------- |
-| Chinese-LLaMA-Alpaca | 中文 | [chinese-llama-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-7b) |               |
-|                      |      | [chinese-llama-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-llama-plus-lora-13b) |               |
-|                      |      | [chinese-alpaca-plus-lora-7b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-7b) |               |
-|                      |      | [chinese-alpaca-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-13b) |               |
-| Open-LLaMA           | 英文 | [open_llama_13b](https://huggingface.co/openlm-research/open_llama_13b) |               |
-|                      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b) |               |
-| BELLE                | 中文 | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B) |               |
-|                      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B) |               |
-| ChatGLM-6B           | 中文 | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)        |               |
-|                      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)      |               |
-| 百川                 | 中文 | [baichuan-7B](https://huggingface.co/baichuan-inc/baichuan-7B) |               |
-|                      | 中文 | [baichuan-13B-Chat](https://huggingface.co/baichuan-inc/Baichuan-13B-Chat) |               |
-| TigerBot             | 中文 | [tigerbot-7b-sft](https://huggingface.co/TigerResearch/tigerbot-7b-sft) |               |
-|                      |      | [tigerbot-7b-base](https://huggingface.co/TigerResearch/tigerbot-7b-base) |               |
-| Pythia               | 英文 | [pythia-70m-deduped](https://huggingface.co/EleutherAI/pythia-70m-deduped) |               |
-|                      |      | [pythia-1b-deduped](https://huggingface.co/EleutherAI/pythia-1b-deduped) |               |
-|                      |      | [pythia-6.9b-deduped](https://huggingface.co/EleutherAI/pythia-6.9b-deduped) |               |
-|                      |      | [pythia-12b-deduped](https://huggingface.co/EleutherAI/pythia-12b-deduped) |               |
+| 测试模型             | 语言 |      | 测试权重                                                     |
+| -------------------- | ---- | ---- | ------------------------------------------------------------ |
+| Chinese-LLaMA-Alpaca | 中文 |      | [chinese-alpaca-plus-lora-13b](https://huggingface.co/ziqingyang/chinese-alpaca-plus-lora-13b) |
+| Open-LLaMA           | 英文 |      | [open_llama_13b](https://huggingface.co/openlm-research/open_llama_13b) |
+|                      |      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b) |
+| BELLE                | 中文 |      | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B) |
+|                      |      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B) |
+| ChatGLM-6B           | 中文 |      | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)        |
+|                      |      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)      |
+| 百川                 | 中文 |      | [baichuan-7B](https://huggingface.co/baichuan-inc/baichuan-7B) |
+|                      | 中文 |      | [baichuan-13B-Chat](https://huggingface.co/baichuan-inc/Baichuan-13B-Chat) |
+| TigerBot             | 中文 |      | [tigerbot-7b-sft](https://huggingface.co/TigerResearch/tigerbot-7b-sft) |
+|                      |      |      | [tigerbot-7b-base](https://huggingface.co/TigerResearch/tigerbot-7b-base) |
+| Pythia               | 英文 |      | [pythia-1b-deduped](https://huggingface.co/EleutherAI/pythia-1b-deduped) |
+|                      |      |      | [pythia-12b-deduped](https://huggingface.co/EleutherAI/pythia-12b-deduped) |
 
 **TODO：**
 
 - [ ] 支持 QLoRA
 - [ ] 对话界面
-- [ ] 测试 Falcon
 - [ ] 测试 CPM
 - [ ] 添加评价指标
 
 ## Change log
 
-- 【2023-7-？】发布第一版代码，包括LoRA+单卡/多卡微调，测试过的模型包括：Chinese-LLaMA-Alpaca、Open-LLaMA、BELLE、ChatGLM-6B、baichuan、TigerBot、Pythia。
+- 【2023-7-24】发布第一版代码，包括LoRA+单卡/多卡微调、分词器训练，测试过的模型包括：Chinese-LLaMA-Alpaca、Open-LLaMA、BELLE、ChatGLM-6B、baichuan、TigerBot、Pythia。
 
 ## 运行
 
@@ -41,7 +35,7 @@
 
 这里我们使用 [CCKS2023-PromptCBLUE中文医疗大模型评测基准](https://tianchi.aliyun.com/competition/entrance/532084/introduction) 比赛中的数据集为例。此数据集将“[中文医疗信息处理挑战榜 CBLUE](https://tianchi.aliyun.com/dataset/95414?spm=a2c22.12281976.0.0.6d1746affXjGWx)”数据集进行了改造，将16种不同的医疗场景NLP任务全部转化为基于提示的语言生成任务，形成首个中文医疗场景的LLM评测基准。
 
-PromptCBLUE 采用94个指令微调模板，对 CBLUE 基准中的各个任务进行。经过改造后，医疗文本 NLP 数据集都将转化为如下格式。input 字段字符串是 LLM 模型的输入，target 字段也是一个字符串，则是 LLM 模型需要生成的文本序列。其他附加信息有： type是原任务类型(不能作为模型输入)，answer_choices字段是选项，只有分类、术语标准化、推理类任务上该字段才会有实际取值，sample_id是样本编号。这些附加信息是不作为LLM的输入的。
+PromptCBLUE 采用94个指令微调模板，对 CBLUE 基准中的各个任务进行。经过改造后，医疗文本 NLP 数据集都将转化为如下格式。input 字段字符串是 LLM 模型的输入，target 字段也是一个字符串，则是 LLM 模型需要生成的文本序列。
 
 ```json
 {
@@ -53,15 +47,15 @@ PromptCBLUE 采用94个指令微调模板，对 CBLUE 基准中的各个任务�
 }
 ```
 
-为了方便快速验证，**我们抽取了其中的 `CHIP-CTC` 子数据集**，包括训练集 6000 条，验证集 1100 条，测试集 1060 条。
-
-
+为了方便快速验证，我们抽取了其中的 `CHIP-CTC` 子数据集，包括训练集 6000 条，验证集 1100 条，测试集 1060 条。[下载地址](https://huggingface.co/datasets/AIBoy1993/Prompt-CHIP-CTC)
 
 ### 2、模型准备
 
-部分 LLaMA 类的模型需要进行模型转换，涉及到的模型有：
+模型可以下载到本地，训练时给 `model_name_or_path` 参数传入模型所在的路径，也可以只传模型在 Hugging Face 上的名字，例如 `THUDM/chatglm-6b`，代码会自动下载模型。
 
-### 3、微调
+部分 LLaMA 类的模型需要进行模型转换，涉及到的模型有：chinese-alpaca-plus-lora-13b，转换方法参考[这里](https://github.com/ymcui/Chinese-LLaMA-Alpaca#%E5%90%88%E5%B9%B6%E6%A8%A1%E5%9E%8B)。
+
+### 3、环境与配置
 
 #### 环境准备
 
@@ -73,21 +67,16 @@ pip install -r requirements.txt
 
 #### LoRA 配置
 
-在 `configs` 文件夹里有各个模型的 LoRA 配置文件，可以自定义修改。配置文件内容举例如下：
+在 `config.py` 文件里有各类模型的 LoRA 配置文件，可以自定义修改。配置文件内容举例如下：
 
 ```yaml
-{
+'glm': {
     "lora_r": 8,
     "lora_alpha": 32,
     "lora_dropout": 0.05,
-    "lora_target_modules": [
-        "query_key_value",
-        "dense",
-        "dense_h_to_4h",
-        "dense_4h_to_h"
-    ],
-    "modules_to_save": null
-}
+    "lora_target_modules": "query_key_value,dense,dense_h_to_4h,dense_4h_to_h",
+    "modules_to_save": "null"
+},
 ```
 
 字段说明：
@@ -136,60 +125,92 @@ pip install -r requirements.txt
 
 关于多卡并行训练的策略，可参考[这里](https://huggingface.co/docs/transformers/perf_train_gpu_many)。
 
-#### 微调
+### 其他配置
+
+`config.py` 还有几个其他配置：`MODEL_MAP`、`TOKENIZER_MAP`、`SPECIAL_IDS`。
+
+
+
+### 4、微调
 
 ```shell
-lora_config="lora_config_chatglm_6b"
 LR=2e-4
-model_name_or_path="/home/lixudong39/models/chatglm-6b"   
-your_data_path="./datasets/PromptCBLUE"  
-your_checkpopint_path="./experiments/outputs"  
-peft_path=""  
+model_name_or_path="../models/pythia-12b-deduped"   # LLM底座模型路径，或者是huggingface hub上的模型名称
+model_type='pythia'
+your_data_path="./datasets/PromptCBLUE"  # 填入数据集所在的文件夹路径
+your_checkpopint_path="./experiments/outputs"  # 填入用来存储模型的路径
+max_steps=100
+max_source_length=256
+max_target_length=16
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
+peft_path=""  # 如果之前训练过，且存储了peft权重，则设置为peft权重的文件夹路径
+
+CUDA_VISIBLE_DEVICES=3 torchrun --nproc_per_node 1 --master_port 29700 train.py \
+    --deepspeed configs/ds_zero2_no_offload.json \
+    --do_train \
+    --do_eval \
     --model_name_or_path $model_name_or_path \
+    --model_type $model_type \
     --use_lora True \
-    --train_file $your_data_path/train.json \
-    --validation_file $your_data_path/dev.json \
+    --fp16 \
+    --train_file $your_data_path/train_CHIP-CTC.json \
+    --validation_file $your_data_path/dev_CHIP-CTC.json \
+    --preprocessing_num_workers 8 \
     --cache_dir $your_data_path \
     --prompt_column input \
     --response_column target \
-    --output_dir $your_checkpopint_path/PromptCBLUE-chatglm-6b-lora-$LR \
+    --output_dir $your_checkpopint_path/test-pythia-12b-deduped-lora-$LR \
     --overwrite_output_dir \
-    --max_source_length 512 \
-    --max_target_length 64 \
+    --max_source_length $max_source_length \
+    --max_target_length $max_target_length \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 16 \
-    --max_steps 10000 \
+    --max_steps $max_steps \
     --logging_steps 10 \
-    --save_steps 300 \
-    --learning_rate $LR \
-    --lora_config configs/${lora_config}.json
+    --save_strategy steps \
+    --save_steps 50 \
+    --save_total_limit 3 \
+    --evaluation_strategy steps \
+    --eval_steps 50 \
+    --learning_rate $LR 
 ```
 
-主要参数含义如下：
+参数含义如下：
 
+- `deepspeed`：deepspeed 的配置文件路径
+- `do_train`：
+- `do_eval`：
 - `model_name_or_path`：模型在 hugging face 上的名字，或者是已经存在本地的路径
-- `use_lora`：使用 lora 微调，默认为 `True`，否则是全量微调。
+- `model_type`（此项目自定义参数）：model 的类型
+- `use_lora`：使用 lora 微调，默认为 `True`，否则是全量微调
+- `fp16`：
+- `train_file`：
+- `validation_file`：
+- `preprocessing_num_workers`：在对数据进行批量分词时的 worker 数
+- `cache_dir`：缓存路径
 - `prompt_column`：样本里输入的字段名
 - `response_column`：样本里输出的字段名
+- `output_dir`：训练结果保存路径
+- `overwrite_output_dir`：
 - `max_source_length：`输入的最大长度
 - `max_target_length`：输出的最大长度
-- `pre_device_train_batch_size`：每张卡上的 batch size
+- `pre_device_train_batch_size`：训练时每张卡上的 batch size
+- `pre_device_eval_batch_size`：验证/测试时每张卡上的 batch size
 - `gradient_accumulation_steps`：梯度累积轮数
 - `max_steps`：训练轮数，一轮包含样本数： `GPU数量 * pre_device_train_batch_size * gradient_accumulation_steps`
 - `logging_steps`：每多少轮打印 log
-- `save_steps`：每多少轮保存 checkpoint
-- `lora_config`：lora 配置文件路径
+- `save_strategy`：按照 steps 数还是 epoch 数来保存中间结果
+- `save_steps`：每多少 steps 保存 checkpoint
+- `evaluation_strategy`：按照 steps 数还是 epoch 数来跑验证集
+- `eval_steps`：每多少 steps 跑一次验证
+- `learning_rate`：学习率
 
-### 4、推理
+### 5、推理
 
 **运行推理脚本：**
 
-
 **结果示例：**
-
 
 **问题记录：**
 
@@ -210,7 +231,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 nohup torchrun --nproc_per_node 4 train.py \
 
 - [PromptCBLUE](https://github.com/michael-wzhu/PromptCBLUE)
 
-## 学习交流群
+## 免责声明
+
+**本项目仅供学习研究使用**。模型的训练结果受模型本身结构、随机性、训练参数、数据集等因素影响，本项目不对模型训练的结果负责，也不对模型的生成内容负责，也不对使用本项目造成的任何损失承担责任。本项目由个人在业余时间开发并维护，因投入时间有限、作者水平有限，无法保证相关问题回复的时效性，不过后续会建立交流群，到时欢迎大家一起学习、互帮互助。
 
 ## 引用
 
