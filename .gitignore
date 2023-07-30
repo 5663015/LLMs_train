@@ -205,3 +205,4 @@ scripts/train_test.sh
 data_generate_custom.py
 test.py
 api_*.py
+merge_lora.py
