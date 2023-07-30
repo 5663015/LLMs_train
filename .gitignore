@@ -194,7 +194,9 @@ fabric.properties
 __pycache__/
 datasets/
 experiments/
-tokenizer/
+tokenizer/custom
+tokenizer/llama
+tokenizer/output
 api_pythia.py
 1
 nohup.out

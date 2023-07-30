@@ -10,7 +10,7 @@ import sentencepiece as spm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--corpus_name_or_path', type=str, required=True)
-parser.add_argument('--output_path', type=str, default='./tokenizer/custom')
+parser.add_argument('--output_path', type=str, default='./custom')
 parser.add_argument('--model_name', type=str, default='tokenizer', help='model name to be saved')
 parser.add_argument('--vocab_size', type=int, default=30000)
 parser.add_argument('--character_coverage', type=float, default=0.9995)
@@ -34,7 +34,7 @@ spm.SentencePieceTrainer.train(
     input=corpus,
     model_prefix=os.path.join(args.output_path, args.model_name),
     vocab_size=args.vocab_size,
-    user_defined_symbols=args.user_defined_symbols.split(','),
+    user_defined_symbols=args.user_defined_symbols.split(','), 
     character_coverage=args.character_coverage,
     model_type=args.model_type,
 )
