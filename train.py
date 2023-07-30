@@ -149,30 +149,6 @@ def main():
         tokenizer.eos_token_id = cfg.SPECIAL_IDS[model_args.model_name_or_path.split('/')[-1]]['eos_id']
         tokenizer.pad_token_id = cfg.SPECIAL_IDS[model_args.model_name_or_path.split('/')[-1]]['pad_id']
 
-    # if model_args.model_type == 'llama':
-    #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
-    #     print_rank_0("Set the eos_token_id and bos_token_id of LLama model tokenizer", log_file, global_rank)
-    #     tokenizer.eos_token_id = 2
-    #     tokenizer.bos_token_id = 1
-    #     tokenizer.pad_token_id = 0
-    #     tokenizer.padding_side = "left"  # Allow batched inference
-    #     tokenizer.pad_token = tokenizer.eos_token
-    # elif model_args.model_type == 'glm':
-    #     tokenizer = AutoTokenizer.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         trust_remote_code=True
-    #     )
-    # elif model_args.model_type == 'pythia':
-    #     tokenizer = AutoTokenizer.from_pretrained(
-    #         model_args.model_name_or_path,
-    #         trust_remote_code=True
-    #     )
-    #     tokenizer.eos_token_id = 2
-    #     tokenizer.bos_token_id = 1
-    #     tokenizer.pad_token_id = 0
-    # elif model_args.model_type == 'gpt-neox':
-    #     tokenizer = GPTNeoXTokenizerFast.from_pretrained("gpt2")
-
     print_rank_0("tokenizer.eos_token_id = {}".format(tokenizer.eos_token_id), log_file, global_rank)
     print_rank_0("tokenizer.pad_token_id = {}".format(tokenizer.pad_token_id), log_file, global_rank)
     print_rank_0("tokenizer.bos_token_id = {}".format(tokenizer.bos_token_id), log_file, global_rank)

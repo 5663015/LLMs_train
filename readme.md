@@ -42,11 +42,11 @@ PromptCBLUE 采用94个指令微调模板，对 CBLUE 基准中的各个任务�
 
 ```json
 {
-	"input":  str,
-	"target":  str,
-	"type":  str,
-	"answer_choices":  str,
-	"sample_id":  str,
+	"input": str,
+	"target": str,
+	"type": str,
+	"answer_choices": str,
+	"sample_id": str,
 }
 ```
 
@@ -85,7 +85,7 @@ pip install -r requirements.txt
 字段说明：
 
 - `lora_r`：LoRA 的秩 $r$；
-- `lora_alpha`：$\frac{\alpha}{r} \Delta Wx$ 中的 $\alpha$；
+- `lora_alpha`： $\frac{\alpha}{r} \Delta Wx$ 中的 $\alpha$；
 - `lora_dropout`：LoRA 层的 dropout 概率；
 - `lora_target_modules`：LoRA 挂在哪些 modules 上；
 - `modules_to_save`：除了 LoRA 层外，还有哪些 modules 被设为可训练的，并且会被保存在最后的 checkpoint 中。

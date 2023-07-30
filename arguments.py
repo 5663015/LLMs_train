@@ -51,10 +51,6 @@ class ModelArguments:
             "choices": ["auto", "bfloat16", "float16", "float32"],
         },
     )
-    llama: bool = field(
-        default=False,
-        metadata={"help": "Llama model"}
-    )
     torchscript: bool = field(
         default=False,
         metadata={"help": "Save torchscript model. https://huggingface.co/docs/transformers/v4.30.0/en/torchscript#export-to-torchscript"}
@@ -144,10 +140,6 @@ class TrainingArguments(TrainingArguments):
         default=False,
         metadata={"help": "Whether to use int8 training."}
     )
-    # lora_config: Optional[str] = field(
-    #     default=None,
-    #     metadata={"help": "LoRA config file."},
-    # )
     ddp_find_unused_parameters: bool = field(
         default=False,
         metadata={"help": "ddp_find_unused_parameters"}
