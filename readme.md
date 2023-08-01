@@ -9,7 +9,7 @@
 |                      |      | [open_llama_7b](https://huggingface.co/openlm-research/open_llama_7b) |
 | BELLE                | 中文 | [BELLE-LLaMA-EXT-13B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-13B) |
 |                      |      | [BELLE-LLaMA-EXT-7B](https://huggingface.co/BelleGroup/BELLE-LLaMA-EXT-7B) |
-| BLLOM                | 英文 | [bloomz-1b7](https://huggingface.co/bigscience/bloomz-1b7)   |
+| BLOOM                | 英文 | [bloomz-1b7](https://huggingface.co/bigscience/bloomz-1b7)   |
 |                      |      | [bloomz-7b1](https://huggingface.co/bigscience/bloomz-7b1)   |
 | ChatGLM-6B           | 中文 | [ChatGLM-6B](https://huggingface.co/THUDM/chatglm-6b)        |
 |                      |      | [ChatGLM2-6B](https://huggingface.co/THUDM/chatglm2-6b)      |
@@ -30,7 +30,7 @@
 
 ## Change log
 
-- 【2023-7-31】发布第一版代码，包括LoRA+单卡/多卡微调、分词器训练，测试过的模型包括：Chinese-LLaMA-Alpaca、Open-LLaMA、BELLE、ChatGLM-6B、baichuan、TigerBot、Pythia。
+- 【2023-7-31】发布第一版代码，包括LoRA+单卡/多卡微调、分词器训练，测试过的模型包括：Chinese-LLaMA-Alpaca、Open-LLaMA、BELLE、BLOOM、ChatGLM-6B、baichuan、TigerBot、Pythia。
 
 ## 运行
 
